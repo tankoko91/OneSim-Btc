@@ -299,10 +299,6 @@ public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDet
             return false;
         }
         
-        private boolean isObserver(DTNHost otherHost) {
-            if(otherHost.toString().startsWith("OBS")) return true;
-            return false;
-        }
 
         private void addWalletToMessage(Message m, DTNHost thisHost) {
             List<Wallet> wallets = new LinkedList<Wallet>();
