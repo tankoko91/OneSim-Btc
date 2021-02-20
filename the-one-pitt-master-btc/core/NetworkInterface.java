@@ -32,8 +32,8 @@ abstract public class NetworkInterface implements ModuleCommunicationListener {
     variable. Value type: integer */
 	public static final String SPEED_ID = "Network.speed";
 	
-	protected static final int CON_UP = 1;
-	protected static final int CON_DOWN = 2;
+	private static final int CON_UP = 1;
+	private static final int CON_DOWN = 2;
 	private static int nextAddress = 0;
 	private static Random rng;
 	protected DTNHost host = null;
@@ -48,8 +48,6 @@ abstract public class NetworkInterface implements ModuleCommunicationListener {
 	/** scanning interval, or 0.0 if n/a */
 	private double scanInterval;
 	private double lastScanTime;
-	
-	protected Activeness activeModel;
 
 
 	static {
@@ -104,8 +102,6 @@ abstract public class NetworkInterface implements ModuleCommunicationListener {
 		this.interfacetype = ni.interfacetype;
 		this.transmitRange = ni.transmitRange;
 		this.transmitSpeed = ni.transmitSpeed;
-		if(ni.activeModel != null)
-			this.activeModel = ni.activeModel.replicate();
 		
 		/* draw lastScanTime of [0 -- scanInterval] */
 		this.lastScanTime = rng.nextDouble() * scanInterval;
@@ -131,12 +127,6 @@ abstract public class NetworkInterface implements ModuleCommunicationListener {
 		optimizer = ConnectivityGrid.ConnectivityGridFactory(
 				this.interfacetype.hashCode(), transmitRange);
 		optimizer.addInterface(this);		
-	}
-	
-	public void setActivenessModel(Activeness am)
-	{
-		if(am != null)
-			this.activeModel = am;
 	}
 
 	/**
@@ -253,25 +243,21 @@ abstract public class NetworkInterface implements ModuleCommunicationListener {
 	 * make the decision whether to disconnect or not
 	 * @param con The connection to tear down
 	 */
-	/*protected void disconnect(Connection con, 
+	protected void disconnect(Connection con, 
 			NetworkInterface anotherInterface) {
 		con.setUpState(false);
 		notifyConnectionListeners(CON_DOWN, anotherInterface.getHost());
 
 		// tear down bidirectional connection
-		if (!anotherInterface.removeConnection(con, this)) {
+		if (!anotherInterface.getConnections().remove(con)) {
 			throw new SimError("No connection " + con + " found in " +
 					anotherInterface);	
 		}
 
 		this.host.connectionDown(con);
 		anotherInterface.getHost().connectionDown(con);
-	}*/
-	public void disconnect(NetworkInterface anotherInterface)
-	{
-		notifyConnectionListeners(CON_DOWN, anotherInterface.getHost());
 	}
-	
+
 	/**
 	 * Returns true if another interface is within radio range of this interface
 	 * and this interface is also within radio range of the another interface.
@@ -286,7 +272,7 @@ abstract public class NetworkInterface implements ModuleCommunicationListener {
 		}
 
 		return this.host.getLocation().distance(
-				anotherInterface.getLocation()) <= smallerRange;
+				anotherInterface.getHost().getLocation()) <= smallerRange;
 	}
 	
 	/**
@@ -328,7 +314,7 @@ abstract public class NetworkInterface implements ModuleCommunicationListener {
 	 * @param type Type of the change (e.g. {@link #CON_DOWN} )
 	 * @param otherHost The other host on the other end of the connection.
 	 */
-	public void notifyConnectionListeners(int type, DTNHost otherHost) {
+	private void notifyConnectionListeners(int type, DTNHost otherHost) {
 		if (this.cListeners == null) {
 			return;
 		}
@@ -369,19 +355,22 @@ abstract public class NetworkInterface implements ModuleCommunicationListener {
 
 	/** 
 	 * Creates a connection to another host. This method does not do any checks
-	 * on whether the other node is in range or active.
+	 * on whether the other node is in range or active 
+	 * (cf. {@link #connect(NetworkInterface)}).
 	 * @param anotherInterface The interface to create the connection to
 	 */
 	public abstract void createConnection(NetworkInterface anotherInterface);
-
+	
 	/**
 	 * Disconnect a connection between this and another host.
-	 * @param anotherHost The host to disconnect from this host
+	 * @param anotherInterface The other host's network interface to disconnect 
+	 * from this host
 	 */
-	public void destroyConnection(DTNHost anotherHost) {
+	public void destroyConnection(NetworkInterface anotherInterface) {
+		DTNHost anotherHost = anotherInterface.getHost();
 		for (int i=0; i < this.connections.size(); i++) {
 			if (this.connections.get(i).getOtherNode(this.host) == anotherHost){
-				removeConnectionByIndex(i);
+				removeConnectionByIndex(i, anotherInterface);
 			}
 		}
 		// the connection didn't exist, do nothing
@@ -389,19 +378,22 @@ abstract public class NetworkInterface implements ModuleCommunicationListener {
 
 	/**
 	 * Removes a connection by its position (index) in the connections array
+	 * of the interface
 	 * @param index The array index of the connection to be removed
+	 * @param anotherInterface The interface of the other host
 	 */
-	private void removeConnectionByIndex(int index) {
+	private void removeConnectionByIndex(int index, 
+			NetworkInterface anotherInterface) {
 		Connection con = this.connections.get(index);
-		DTNHost anotherNode = con.getOtherNode(this.host);
+		DTNHost anotherNode = anotherInterface.getHost();
 		con.setUpState(false);
 		notifyConnectionListeners(CON_DOWN, anotherNode);
 
 		// tear down bidirectional connection
-		/*if (!anotherNode.getConnections().remove(con)) {
+		if (!anotherInterface.getConnections().remove(con)) {
 			throw new SimError("No connection " + con + " found in " +
 					anotherNode);   
-		}*/
+		}
 
 		this.host.connectionDown(con);
 		anotherNode.connectionDown(con);
@@ -432,33 +424,5 @@ abstract public class NetworkInterface implements ModuleCommunicationListener {
 		return "net interface " + this.address + " of " + this.host + 
 			". Connections: " +	this.connections;
 	}
-	
-	public boolean isActive() {
-		if(activeModel == null) return true;
-		return this.activeModel.isActive();
-	}
-	
-	public boolean acceptingConnections() {
-		return isActive();
-	}
 
-	public boolean removeConnection(Connection con, NetworkInterface initiator)
-	{
-		return this.connections.remove(con);
-	}
-	
-	/*public boolean hasConnection(Connection con)
-	{
-		for(Connection c : this.connections)
-		{
-			if(c.equals(con)) // Uncomment Connection.equals()
-				return true;
-		}
-		return false;
-	}*/
-	
-	public int connectionCount()
-	{
-		return this.connections.size();
-	}
 }

@@ -69,10 +69,10 @@ public class NodeGraphic extends PlayFieldGraphic {
 		if (drawConnections) {
 			g2.setColor(conColor);
 			Coord c1 = node.getLocation();
-//			ArrayList<Connection> conList = new ArrayList<Connection>();
+			ArrayList<Connection> conList = new ArrayList<Connection>();
 			// create a copy to prevent concurrent modification exceptions
-			//conList.addAll(node);
-			for (Connection c : node.getConnections()) {
+			conList.addAll(node.getConnections());
+			for (Connection c : conList) {
 				Coord c2 = c.getOtherNode(node).getLocation();
 
 				g2.drawLine(scale(c1.getX()), scale(c1.getY()),

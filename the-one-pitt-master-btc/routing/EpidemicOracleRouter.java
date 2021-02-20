@@ -68,8 +68,7 @@ public class EpidemicOracleRouter extends ActiveRouter {
 	private void sendMessageToConnected(Message m) {
 		DTNHost host = getHost();
 		
-		for(Connection c : getHost()) {
-//		for (Connection c : getConnections()) {
+		for (Connection c : getConnections()) {
 			if (c.isReadyForTransfer() && c.startTransfer(host, m) == RCV_OK) {
 				c.finalizeTransfer(); /* and finalize it right away */
 			}			

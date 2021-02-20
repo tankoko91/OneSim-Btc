@@ -4,7 +4,6 @@
  */
 package report;
 
-import btc.Wallet;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -23,8 +22,7 @@ import core.MessageListener;
  * double values and zero for integer median(s).
  */
 public class MessageStatsReport extends Report implements MessageListener {
-	private Map<Message, Double> creationTimes;
-	private Map<DTNHost, String> wallet;
+	private Map<String, Double> creationTimes;
 	private List<Double> latencies;
 	private List<Integer> hopCounts;
 	private List<Double> msgBufferTime;
@@ -50,8 +48,7 @@ public class MessageStatsReport extends Report implements MessageListener {
 	@Override
 	protected void init() {
 		super.init();
-		this.creationTimes = new HashMap<Message, Double>();
-		this.wallet = new HashMap<DTNHost, String>();
+		this.creationTimes = new HashMap<String, Double>();
 		this.latencies = new ArrayList<Double>();
 		this.msgBufferTime = new ArrayList<Double>();
 		this.hopCounts = new ArrayList<Integer>();
@@ -95,23 +92,22 @@ public class MessageStatsReport extends Report implements MessageListener {
 
 	
 	public void messageTransferred(Message m, DTNHost from, DTNHost to,
-			boolean finalTarget) {
-		if (isWarmupID(m.getId())) {
-			return;
-		}
+		          boolean finalTarget) {
+        if (isWarmupID(m.getId())) {
+            return;
+        }
 
-		this.nrofRelayed++;
-		if (finalTarget) {
-			this.latencies.add(getSimTime() - 
-				this.creationTimes.get(m.getId()) );
-			this.nrofDelivered++;
-			this.hopCounts.add(m.getHops().size() - 1);
-			
-			if (m.isResponse()) {
-				this.rtt.add(getSimTime() -	m.getRequest().getCreationTime());
-				this.nrofResponseDelivered++;
-			}
-		}
+        this.nrofRelayed++;
+        if (finalTarget) {
+            this.latencies.add(getSimTime() - this.creationTimes.get(m.getId()));
+            this.nrofDelivered++;
+            this.hopCounts.add(m.getHops().size() - 1);
+
+            if (m.isResponse()) {
+                this.rtt.add(getSimTime() - m.getRequest().getCreationTime());
+                this.nrofResponseDelivered++;
+            }
+        }
 	}
 
 
@@ -121,8 +117,7 @@ public class MessageStatsReport extends Report implements MessageListener {
 			return;
 		}
 		
-		this.creationTimes.put(m, getSimTime());
-                
+		this.creationTimes.put(m.getId(), getSimTime());
 		this.nrofCreated++;
 		if (m.getResponseSize() > 0) {
 			this.nrofResponseReqCreated++;
@@ -143,15 +138,41 @@ public class MessageStatsReport extends Report implements MessageListener {
 	public void done() {
 		write("Message stats for scenario " + getScenarioName() + 
 				"\nsim_time: " + format(getSimTime()));
+		double deliveryProb = 0; // delivery probability
+		double responseProb = 0; // request-response success probability
+		double overHead = Double.NaN;	// overhead ratio
 		
-		String statsText = "";
-                for (Map.Entry<DTNHost,String> entry : wallet.entrySet()){ 
-                            statsText += entry.getKey() + 
-                             ", Address = " + entry.getKey().getAddress()+
-                             ", Price = " + entry.getKey().getWallet()+
-                                    "\n";
-                }
+		if (this.nrofCreated > 0) {
+			deliveryProb = (1.0 * this.nrofDelivered) / this.nrofCreated;
+		}
+		if (this.nrofDelivered > 0) {
+			overHead = (1.0 * (this.nrofRelayed - this.nrofDelivered)) /
+				this.nrofDelivered;
+		}
+		if (this.nrofResponseReqCreated > 0) {
+			responseProb = (1.0* this.nrofResponseDelivered) / 
+				this.nrofResponseReqCreated;
+		}
 		
+		String statsText = "created: " + this.nrofCreated + 
+			"\nstarted: " + this.nrofStarted + 
+			"\nrelayed: " + this.nrofRelayed +
+			"\naborted: " + this.nrofAborted +
+			"\ndropped: " + this.nrofDropped +
+			"\nremoved: " + this.nrofRemoved +
+			"\ndelivered: " + this.nrofDelivered +
+			"\ndelivery_prob: " + format(deliveryProb) +
+			"\nresponse_prob: " + format(responseProb) + 
+			"\noverhead_ratio: " + format(overHead) + 
+			"\nlatency_avg: " + getAverage(this.latencies) +
+			"\nlatency_med: " + getMedian(this.latencies) + 
+			"\nhopcount_avg: " + getIntAverage(this.hopCounts) +
+			"\nhopcount_med: " + getIntMedian(this.hopCounts) + 
+			"\nbuffertime_avg: " + getAverage(this.msgBufferTime) +
+			"\nbuffertime_med: " + getMedian(this.msgBufferTime) +
+			"\nrtt_avg: " + getAverage(this.rtt) +
+			"\nrtt_med: " + getMedian(this.rtt)
+			;
 		
 		write(statsText);
 		super.done();

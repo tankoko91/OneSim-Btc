@@ -86,7 +86,7 @@ public interface RoutingDecisionEngine
 	 * @param otherHost peer to potentially send the message to.
 	 * @return true if the message should be sent. False otherwise.
 	 */
-	public boolean shouldSendMessageToHost(Message m, DTNHost otherHost);
+	public boolean shouldSendMessageToHost(Message m, DTNHost otherHost, DTNHost thisHost);
 	
 	/**
 	 * Called after a message is sent to some other peer to ask if it should now
@@ -109,6 +109,7 @@ public interface RoutingDecisionEngine
 	 */
 	public boolean shouldDeleteOldMessage(Message m, DTNHost hostReportingOld);
 	
+        public void update(DTNHost thisHost);
 	/**
 	 * Duplicates this decision engine.
 	 * 

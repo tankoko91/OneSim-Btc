@@ -425,8 +425,7 @@ public class ProphetRouterWithEstimation extends ActiveRouter {
 
 		/* for all connected hosts collect all messages that have a higher
 		   probability of delivery by the other host */
-		for(Connection con : getHost()) {
-//		for (Connection con : getConnections()) {
+		for (Connection con : getConnections()) {
 			DTNHost other = con.getOtherNode(getHost());
 			ProphetRouterWithEstimation othRouter = (ProphetRouterWithEstimation)other.getRouter();
 

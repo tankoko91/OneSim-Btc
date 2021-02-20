@@ -4,7 +4,6 @@
  */
 package movement;
 
-import movement.map.SimMap;
 import core.Coord;
 import core.Settings;
 
@@ -106,7 +105,6 @@ public class WorkingDayMovement extends ExtendedMovementModel {
 								getShoppingLocationAndGetReady());
 					mode = BUS_TO_EVENING_ACTIVITY_MODE;
 				} else {
-					eveningActivityMovement.skipShopping();
 					movementUsedForTransfers.setNextRoute(
 							workerMM.getOfficeLocation(), 
 							homeMM.getHomeLocation());
@@ -177,14 +175,6 @@ public class WorkingDayMovement extends ExtendedMovementModel {
 	
 	public Coord getShoppingLocation() {
 		return eveningActivityMovement.getShoppingLocation().clone();
-	}
-	
-	/**
-	 * Returns the SimMap this movement model uses
-	 * @return The SimMap this movement model uses
-	 */
-	public SimMap getMap() {
-		return this.eveningActivityMovement.getMap();
 	}
 	
 }

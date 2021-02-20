@@ -5,7 +5,6 @@
 package movement;
 
 import core.Coord;
-import core.SimError;
 
 /**
  * A class to encapsulate information about a shopping trip
@@ -19,7 +18,6 @@ import core.SimError;
 public class EveningTrip {
 	private EveningActivityMovement[] eveningActivityNodes;
 	private int eveningActivityNodesInBuffer;
-	private int eveningActivityNodesExpected;
 	private Path path;
 	private Coord location;
 	private Coord destination;
@@ -35,7 +33,6 @@ public class EveningTrip {
 			new EveningActivityMovement[nrOfeveningActivityNodes];
 		this.location = location;
 		eveningActivityNodesInBuffer = 0;
-		eveningActivityNodesExpected = nrOfeveningActivityNodes;
 	}
 	
 	/**
@@ -84,7 +81,7 @@ public class EveningTrip {
 	 * @return true if the group is full
 	 */
 	public boolean isFull() {
-		return eveningActivityNodesInBuffer >= eveningActivityNodesExpected;
+		return eveningActivityNodesInBuffer >= eveningActivityNodes.length;
 	}
 	
 	/**
@@ -96,7 +93,7 @@ public class EveningTrip {
 		if (!isFull()) {
 			return false;
 		}
-		for (int i=0; i<eveningActivityNodesExpected; i++) {
+		for (int i=0; i<eveningActivityNodes.length; i++) {
 			if (!eveningActivityNodes[i].isReadyToShop()) {
 				return false;
 			}
@@ -126,17 +123,6 @@ public class EveningTrip {
 
 	public void setWaitTimeAtEnd(double waitTimeAtEnd) {
 		this.waitTimeAtEnd = waitTimeAtEnd;
-	}
-	
-	public void nodeIsSkippingTrip()
-	{
-		if(isFull())
-			throw new SimError("An EveningTrip is full and someone is trying to skip. " +
-					"This shouldn't happen.");
-		
-		eveningActivityNodesExpected--;
-		//System.out.println("Trip to: " + location + " new size: " + eveningActivityNodesExpected +
-		//		" Waiting Nodes: " + eveningActivityNodesInBuffer);
 	}
 }
 

@@ -4,11 +4,11 @@
  */
 package movement;
 
-import java.util.*;
+import java.util.List;
+import java.util.Random;
 
 import movement.map.DijkstraPathFinder;
 import movement.map.MapNode;
-import movement.map.MapRoute;
 import movement.map.SimMap;
 import core.Coord;
 import core.Settings;
@@ -36,8 +36,6 @@ public class BusTravellerMovement extends MapBasedMovement implements
 	public static final int STATE_TRAVELLING_ON_BUS = 2;
 	public static final int STATE_WALKING_ELSEWHERE = 3;
 	
-	public static final int BUSSTOP_INCLUSION_DISTANCE = 500; //meters
-	
 	private int state;
 	private Path nextPath;
 	private Coord location;
@@ -51,10 +49,8 @@ public class BusTravellerMovement extends MapBasedMovement implements
 	
 	private Coord startBusStop;
 	private Coord endBusStop;
-	private Coord directionIndicatingStop;
 	
 	private boolean takeBus;
-	private int currentBusID;
 	
 	private static int nextID = 0;
 	
@@ -79,7 +75,6 @@ public class BusTravellerMovement extends MapBasedMovement implements
 		cbtd = new ContinueBusTripDecider(rng, probabilities);
 		pathFinder = new DijkstraPathFinder(null);
 		takeBus = true;
-		currentBusID = -1;
 	}
 	
 	/**
@@ -101,7 +96,6 @@ public class BusTravellerMovement extends MapBasedMovement implements
 		pathFinder = proto.pathFinder;
 		this.probTakeOtherBus = proto.probTakeOtherBus;
 		takeBus = true;
-		currentBusID = -1;
 	}
 	
 	@Override
@@ -112,7 +106,7 @@ public class BusTravellerMovement extends MapBasedMovement implements
 		int index = rng.nextInt(mapNodes.length - 1);
 		location = mapNodes[index].getLocation().clone();
 		
-		List<MapNode> allStops = controlSystem.getBusStops();
+		List<Coord> allStops = controlSystem.getBusStops();
 		Coord closestToNode = getClosestCoordinate(allStops, location.clone());
 		latestBusStop = closestToNode.clone();
 		
@@ -158,10 +152,6 @@ public class BusTravellerMovement extends MapBasedMovement implements
 	 */
 	protected double generateWaitTime() {
 		if (state == STATE_WALKING_ELSEWHERE) {
-			if (latestBusStop == null) {
-				System.err.println("Disabling bus traveler");
-				return Double.POSITIVE_INFINITY;
-			}
 			if (location.equals(latestBusStop)) {
 				state = STATE_WAITING_FOR_BUS;
 			}
@@ -197,29 +187,15 @@ public class BusTravellerMovement extends MapBasedMovement implements
 	 * busses are also notified.
 	 * @param nextPath The next path the bus is going to take
 	 */
-	public void enterBus(int busID, Path nextPath) {
+	public void enterBus(Path nextPath) {
 		
 		if (startBusStop != null && endBusStop != null) {
 			if (location.equals(endBusStop)) {
 				state = STATE_WALKING_ELSEWHERE;
 				latestBusStop = location.clone();
-				currentBusID = -1;
-			} 
-			else if(currentBusID == busID)
-			{
+			} else {
 				state = STATE_DECIDED_TO_ENTER_A_BUS;
 				this.nextPath = nextPath;
-			}
-			else if(currentBusID == -1)
-			{
-				List<Coord> mapnodes = nextPath.getCoords();
-				Coord nextBusStop = mapnodes.get(mapnodes.size()-1);
-				if(nextBusStop.equals(directionIndicatingStop))
-				{
-					state = STATE_DECIDED_TO_ENTER_A_BUS;
-					currentBusID = busID;
-					this.nextPath = nextPath;
-				}
 			}
 			return;
 		}
@@ -304,174 +280,22 @@ public class BusTravellerMovement extends MapBasedMovement implements
 	 * @param coord destination node
 	 * @return closest to the destination
 	 */
-	private static Coord getClosestCoordinate(List<MapNode> allCoords, 
+	private static Coord getClosestCoordinate(List<Coord> allCoords, 
 			Coord coord) {
 		Coord closestCoord = null;
 		double minDistance = Double.POSITIVE_INFINITY;
-		for (MapNode temp : allCoords) {
-			double distance = temp.getLocation().distance(coord);
+		for (Coord temp : allCoords) {
+			double distance = temp.distance(coord);
 			if (distance < minDistance) {
 				minDistance = distance;
-				closestCoord = temp.getLocation();
+				closestCoord = temp;
 			}
 		}
 		return closestCoord.clone();
 	}
 	
-	private static Set<MapNode> getClosestCoordinates(List<MapNode> allNodes, 
-			Coord location)
-	{
-		Set<MapNode> closest = new HashSet<MapNode>(8);
-		double minDistance = Double.POSITIVE_INFINITY;
-		MapNode min = null;
-		for(MapNode temp: allNodes)
-		{
-			Coord loc = temp.getLocation();
-			double dist = loc.distance(location);
-			if(dist < minDistance)
-			{
-				for(Iterator<MapNode> i = closest.iterator(); i.hasNext();)
-					if(i.next().getLocation().distance(loc) > BUSSTOP_INCLUSION_DISTANCE )
-						i.remove();
-				closest.add(temp);
-				minDistance = dist;
-				min = temp;
-			}
-			else if(min != null && min.getLocation().distance(loc) < BUSSTOP_INCLUSION_DISTANCE)
-				closest.add(temp);
-		}
-		return closest;
-	}
-	
-	private void findShortestBusRoute(List<MapNode> allNodes, Set<MapNode> starts,
-			Set<MapNode> stops)
-	{
-		int searchStart,   
-			indexOfStart, count, endIndex, finalStartIndex = 0, minCount = Integer.MAX_VALUE;
-		
-		// First find the first index of the starting node
-		for(indexOfStart = 0; indexOfStart < allNodes.size(); indexOfStart++)
-		{
-			if(starts.contains(allNodes.get(indexOfStart))) break;
-		}
-		//System.err.println("Starting search: " + indexOfStart);
-		searchStart = indexOfStart;
-		do
-		{
-			/*
-			 * Loop in a circular fashion through the list looking for index of a 
-			 * stop node, keeping track of how many stops we've gone
-			 */
-		
-			for(endIndex = (indexOfStart+1) % allNodes.size(), count = 1; ; 
-						endIndex = (endIndex+1) % allNodes.size(), count++)
-			{
-				MapNode possibleEnd = allNodes.get(endIndex);
-				if(starts.contains(possibleEnd))
-				{
-					if(endIndex == searchStart)
-						break;
-					
-					indexOfStart = endIndex;
-					count = 0;
-				}
-				if(stops.contains(possibleEnd))
-				{
-					break;
-				}
-			}
-			
-			// We get here either when we found a stop node or the search is over
-			// If the search is over, count is meaningless but could be less than
-			// minCount
-			//System.err.println("Might be done: " + endIndex);
-			if(endIndex != searchStart && count < minCount)
-			{
-				finalStartIndex = indexOfStart;
-				minCount = count;
-				this.startBusStop = allNodes.get(finalStartIndex).getLocation();
-				this.directionIndicatingStop = allNodes.get((finalStartIndex+1)%allNodes.size()).getLocation();
-				this.endBusStop = allNodes.get(endIndex).getLocation();
-				//System.err.println("Finishing search: " + this.startBusStop);
-			}
-			
-			for(indexOfStart = endIndex; ; indexOfStart = (indexOfStart+1) % allNodes.size()) {
-				if(starts.contains(allNodes.get(indexOfStart))) break; 
-			}
-		}
-		while(indexOfStart != searchStart);
-		
-		
-	}
-	
-	private void findShortestPingPongBusRoute(List<MapNode> allNodes, Set<MapNode> starts,
-			Set<MapNode> stops)
-	{
-		int searchStart,   
-			indexOfStart, count, endIndex, minCount = Integer.MAX_VALUE,
-			indexLimit = allNodes.size() * 2 - 1;
-		
-		// First find the first index of the starting node
-		for(indexOfStart = 0; indexOfStart < allNodes.size(); indexOfStart++)
-		{
-			if(starts.contains(allNodes.get(indexOfStart))) break;
-		}
-		
-		searchStart = indexOfStart;
-		do
-		{
-			/*
-			 * Loop in a circular fashion through the list looking for index of a 
-			 * stop node, keeping track of how many stops we've gone
-			 */
-			int i;
-			for(i = endIndex = (indexOfStart+1) % allNodes.size(), count = 1; ; 
-						i = (i+1) % indexLimit, 
-						endIndex = i >= allNodes.size() ? indexLimit - i : i, 
-						count++)
-			{
-				MapNode n = allNodes.get(endIndex);
-				if(starts.contains(n))
-				{
-					if(endIndex == searchStart)
-						break;
-					indexOfStart = endIndex;
-					count = 0;
-				}
-				if(stops.contains(n))
-				{
-					break;
-				}
-			}
-			
-			// We get here either when we found a stop node or the search is over
-			// If the search is over, count is meaningless but could be less than
-			// minCount
-			
-			if(endIndex != searchStart && count < minCount)
-			{
-				minCount = count;
-				this.startBusStop = allNodes.get(indexOfStart).getLocation();
-				
-				if(indexOfStart == allNodes.size() - 1) indexOfStart--;
-				else indexOfStart++;
-				this.directionIndicatingStop = allNodes.get(indexOfStart).getLocation();
-				
-				this.endBusStop = allNodes.get(endIndex).getLocation();
-			}
-			
-			for(i = indexOfStart = endIndex; ; 
-					i = (i+1) % indexLimit, 
-					indexOfStart = i >= allNodes.size() ? indexLimit - i : i) {
-				if(starts.contains(allNodes.get(indexOfStart))) break; 
-			}
-		}
-		while(indexOfStart != searchStart);
-		
-	}
-	
 	/**
-	 * Sets the next route for the traveller, so that it can decide whether it 
+	 * Sets the next route for the traveller, so that it can decide wether it 
 	 * should take the bus or not. 
 	 * @param nodeLocation
 	 * @param nodeDestination
@@ -479,34 +303,25 @@ public class BusTravellerMovement extends MapBasedMovement implements
 	public void setNextRoute(Coord nodeLocation, Coord nodeDestination) {
 			
 		// Find closest stops to current location and destination
-		List<MapNode> allStops = controlSystem.getBusStops();
-		int routeType = controlSystem.getRouteType();
+		List<Coord> allStops = controlSystem.getBusStops();
 		
-		Set<MapNode> closestToNode = getClosestCoordinates(allStops, nodeLocation);
-		Set<MapNode> closestToDestination = getClosestCoordinates(allStops, nodeDestination);
+		Coord closestToNode = getClosestCoordinate(allStops, nodeLocation);
+		Coord closestToDestination = getClosestCoordinate(allStops, 
+				nodeDestination);
 		
-		if(routeType == MapRoute.CIRCULAR)
-			findShortestBusRoute(allStops, closestToNode, closestToDestination);
-		else
-			findShortestPingPongBusRoute(allStops, closestToNode, closestToDestination);
-
-		if (this.startBusStop == null) {
-			takeBus = false;
-			System.err.println("Error: Unable to find bus route: " + id);
-			return;
-		}
-
 		// Check if it is shorter to walk than take the bus 
 		double directDistance = nodeLocation.distance(nodeDestination);
-		double busDistance = nodeLocation.distance(this.startBusStop) + 
-			nodeDestination.distance(this.endBusStop);
-
+		double busDistance = nodeLocation.distance(closestToNode) + 
+			nodeDestination.distance(closestToDestination);
+		
 		if (directDistance < busDistance) {
 			takeBus = false;
 		} else {
 			takeBus = true;
 		}
 		
+		this.startBusStop = closestToNode;
+		this.endBusStop = closestToDestination;
 		this.latestBusStop = startBusStop.clone();
 	}
 	

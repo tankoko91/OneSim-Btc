@@ -21,9 +21,6 @@ public class DTNSim {
 	/** Delimiter for batch mode index range values (colon) */
 	public static final String RANGE_DELIMETER = ":";
 	
-	public static final String SETTING_DEF_FLAG = "-d";
-	public static final String CMD_SETTING_DELIMITER = "@@";
-	
 	/** Name of the static method that all resettable classes must have
 	 * @see #registerForReset(String) */
 	public static final String RESET_METHOD_NAME = "reset";
@@ -48,13 +45,12 @@ public class DTNSim {
 		String confFiles[];
 		int firstConfIndex = 0;
 		int guiIndex = 0;
-		String cmdSettings = null;
 
 		/* set US locale to parse decimals in consistent way */
 		java.util.Locale.setDefault(java.util.Locale.US);
 		
 		if (args.length > 0) {
-			/*if (args[0].equals(BATCH_MODE_FLAG)) {
+			if (args[0].equals(BATCH_MODE_FLAG)) {
 				batchMode = true;
                 if (args.length == 1) {
                     firstConfIndex = 1;
@@ -64,47 +60,14 @@ public class DTNSim {
                     firstConfIndex = 2;
                 }
 			}
-			else { /* GUI mode 
-				try { /* is there a run index for the GUI mode ? *
+			else { /* GUI mode */				
+				try { /* is there a run index for the GUI mode ? */
 					guiIndex = Integer.parseInt(args[0]);
 					firstConfIndex = 1;
 				} catch (NumberFormatException e) {
 					firstConfIndex = 0;
 				}
-			}*/
-			
-//			int i = 0;
-			boolean haveRunIndex = false;
-			for(; firstConfIndex < args.length;)
-			{
-				if (args[firstConfIndex].equals(BATCH_MODE_FLAG)) {
-					batchMode = true;
-					nrofRuns = parseNrofRuns(args[firstConfIndex+1]);
-//					firstConfIndex = 2;
-					firstConfIndex += 2;
-					haveRunIndex = true;
-				}
-				else if(args[firstConfIndex].equals(SETTING_DEF_FLAG)) {
-					cmdSettings = args[firstConfIndex+1];
-					firstConfIndex += 2;
-				}
-				else if(!haveRunIndex)
-				{
-					try {
-						guiIndex = Integer.parseInt(args[firstConfIndex]);
-						firstConfIndex++;
-						haveRunIndex = true;
-					}
-					catch(NumberFormatException e) {
-						System.err.print("Error parsing command args. Expected run index. Got: ");
-						System.err.println(args[firstConfIndex]);
-						System.exit(-1);
-					}
-				}
-				else
-					break;
 			}
-			
 			confFiles = args;
 		}
 		else {
@@ -112,12 +75,6 @@ public class DTNSim {
 		}
 		
 		initSettings(confFiles, firstConfIndex);
-		
-		if(cmdSettings != null)
-		{
-			parseCmdSettings(cmdSettings);
-			cmdSettings = null;
-		}
 		
 		if (batchMode) {
 			long startTime = System.currentTimeMillis();
@@ -259,32 +216,11 @@ public class DTNSim {
 		return val;
 	}
 	
-	private static void parseCmdSettings(String arg)
-	{
-		String[] set;
-		
-		if(arg.contains(CMD_SETTING_DELIMITER))
-			set = arg.split(CMD_SETTING_DELIMITER);
-		else
-			set = new String[] {arg};
-		
-		for(String setting : set)
-		{
-			String[] nameVal = setting.split("=");
-			if(nameVal.length != 2)
-			{
-				System.err.println("Improperly formated command line Setting: " + setting);
-				System.exit(-1);
-			}
-			Settings.addSetting(nameVal[0].trim(), nameVal[1].trim());
-		}
-	}
-	
 	/**
 	 * Prints text to stdout
 	 * @param txt Text to print
 	 */
-	public static void print(String txt) {
+	private static void print(String txt) {
 		System.out.println(txt);
 	}
 }

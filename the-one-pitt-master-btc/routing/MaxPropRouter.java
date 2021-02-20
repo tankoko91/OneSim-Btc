@@ -332,8 +332,7 @@ public class MaxPropRouter extends ActiveRouter {
 		
 		/* for all connected hosts that are not transferring at the moment,
 		 * collect all the messages that could be sent */
-		for(Connection con : getHost()) {
-//		for (Connection con : getConnections()) {
+		for (Connection con : getConnections()) {
 			DTNHost other = con.getOtherNode(getHost());
 			MaxPropRouter othRouter = (MaxPropRouter)other.getRouter();
 			

@@ -9,7 +9,6 @@ import java.util.Iterator;
 import java.util.List;
 
 import movement.map.SimMap;
-import movement.map.MapNode;
 import core.Coord;
 import core.DTNSim;
 
@@ -27,8 +26,7 @@ public class BusControlSystem {
 	
 	private HashMap<Integer, BusMovement> busses;
 	private HashMap<Integer, BusTravellerMovement> travellers;
-	private List<MapNode> busStops;
-	private int routeType;
+	private List<Coord> busStops;
 	
 	private SimMap simMap;
 	
@@ -70,7 +68,7 @@ public class BusControlSystem {
 					if (traveller.getState() == BusTravellerMovement.
 							STATE_WAITING_FOR_BUS) {
 						Path path = new Path(nextPath);
-						traveller.enterBus(busID, path);
+						traveller.enterBus(path);
 					} 
 				}
 			}
@@ -131,21 +129,16 @@ public class BusControlSystem {
 	/**
 	 * @return A list of all bus stops belonging to this system
 	 */
-	public List<MapNode> getBusStops() {
+	public List<Coord> getBusStops() {
 		return busStops;
-	}
-	
-	public int getRouteType() {
-		return this.routeType;
 	}
 
 	/**
 	 * Set the bus stops that belong to this system
 	 * @param busStops
 	 */
-	public void setBusStops(int type, List<MapNode> busStops) {
+	public void setBusStops(List<Coord> busStops) {
 		this.busStops = busStops;
-		this.routeType = type;
 	}
 	
 }

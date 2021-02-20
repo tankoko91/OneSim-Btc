@@ -26,7 +26,7 @@ import core.*;
  * the node at which these instancces are stored. To use the local centrality
  * computation, the using object would also have to create and use a
  * CommunityDetection instance. As of right now,
- * {@link routing.community.DistributedBubbleRap} is the only class that does
+ * {@link routing.DistributedBubbleRap} is the only class that does
  * this.
  * </p>
  * 
@@ -61,4 +61,7 @@ public interface Centrality
 	 * @return A duplicate Centrality instance
 	 */
 	public Centrality replicate();
+	
+	//Ini tambahanku sementara
+	//public int [] getGlobalArrayCentrality (Map<DTNHost, List<Duration>> connHistory);
 }

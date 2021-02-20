@@ -156,8 +156,4 @@ public class MapRouteMovement extends MapBasedMovement implements
 	public List<MapNode> getStops() {
 		return route.getStops();
 	}
-	
-	public int getRouteType() {
-		return route.CIRCULAR;
-	}
 }

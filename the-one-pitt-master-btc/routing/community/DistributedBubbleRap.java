@@ -55,8 +55,7 @@ import routing.RoutingDecisionEngine;
  * @author PJ Dillon, University of Pittsburgh
  *
  */
-public class DistributedBubbleRap 
-				implements RoutingDecisionEngine, CommunityDetectionEngine
+public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDetectionEngine
 {
 	/** Community Detection Algorithm to employ -setting id {@value} */
 	public static final String COMMUNITY_ALG_SETTING = "communityDetectAlg";
@@ -127,7 +126,8 @@ public class DistributedBubbleRap
 	
 	public void connectionDown(DTNHost thisHost, DTNHost peer)
 	{
-		double time = startTimestamps.get(peer);
+//		double time = startTimestamps.get(peer);
+		double time = cek(thisHost, peer);
 		double etime = SimClock.getTime();
 		
 		// Find or create the connection history list
@@ -152,6 +152,13 @@ public class DistributedBubbleRap
 		
 		startTimestamps.remove(peer);
 	}
+        
+        public double cek(DTNHost thisHost, DTNHost peer){
+            if (startTimestamps.containsKey(thisHost)) {
+                startTimestamps.get(peer);
+            }
+            return 0;
+        }
 
 	public boolean newMessage(Message m)
 	{
@@ -168,7 +175,7 @@ public class DistributedBubbleRap
 		return m.getTo() != thisHost;
 	}
 
-	public boolean shouldSendMessageToHost(Message m, DTNHost otherHost)
+	public boolean shouldSendMessageToHost(Message m, DTNHost otherHost, DTNHost thisHost)
 	{
 		if(m.getTo() == otherHost) return true; // trivial to deliver to final dest
 		
@@ -182,7 +189,6 @@ public class DistributedBubbleRap
 		 */
 		DTNHost dest = m.getTo();
 		DistributedBubbleRap de = getOtherDecisionEngine(otherHost);
-		
 		// Which of us has the dest in our local communities, this host or the peer
 		boolean peerInCommunity = de.commumesWithHost(dest);
 		boolean meInCommunity = this.commumesWithHost(dest);
@@ -252,4 +258,7 @@ public class DistributedBubbleRap
 	}
 
 	public Set<DTNHost> getLocalCommunity() {return this.community.getLocalCommunity();}
+
+    @Override
+    public void update(DTNHost thisHost) {}
 }

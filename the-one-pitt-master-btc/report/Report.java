@@ -62,6 +62,7 @@ public abstract class Report {
 	protected int warmupTime;
 	protected Set<String> warmupIDs;
 	
+	
 	private int lastOutputSuffix;
 	private double outputInterval;
 	private double lastReportTime;
@@ -77,6 +78,7 @@ public abstract class Report {
 	public Report(){
 		this.lastOutputSuffix = 0;
 		this.outputInterval = -1;
+		
 		this.warmupIDs = null;
 
 		Settings settings = new Settings();

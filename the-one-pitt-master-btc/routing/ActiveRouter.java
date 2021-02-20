@@ -68,8 +68,8 @@ public abstract class ActiveRouter extends MessageRouter {
 	}
 	
 	@Override
-	public void initialize(DTNHost host, List<MessageListener> mListeners) {
-		super.initialize(host, mListeners);
+	public void init(DTNHost host, List<MessageListener> mListeners) {
+		super.init(host, mListeners);
 		this.sendingConnections = new ArrayList<Connection>(1);
 		this.lastTtlCheck = 0;
 	}
@@ -78,12 +78,8 @@ public abstract class ActiveRouter extends MessageRouter {
 	 * Called when a connection's state changes. This version doesn't do 
 	 * anything but subclasses may want to override this.
 	 */
-	//@Override
+	@Override
 	public void changedConnection(Connection con) { }
-	
-	public void connectionUp(Connection con){}
-
-	public void connectionDown(Connection con){}
 	
 	@Override
 	public boolean requestDeliverableMessages(Connection con) {
@@ -105,7 +101,7 @@ public abstract class ActiveRouter extends MessageRouter {
 		}
 		return false;
 	}
-
+	
 	@Override 
 	public boolean createNewMessage(Message m) {
 		makeRoomForNewMessage(m.getSize());
@@ -148,9 +144,9 @@ public abstract class ActiveRouter extends MessageRouter {
 	 * Returns a list of connections this host currently has with other hosts.
 	 * @return a list of connections this host currently has with other hosts
 	 */
-	/*protected List<Connection> getConnections() {
+	protected List<Connection> getConnections() {
 		return getHost().getConnections();
-	}*/
+	}
 	
 	/**
 	 * Tries to start a transfer of message using a connection. Is starting
@@ -189,8 +185,7 @@ public abstract class ActiveRouter extends MessageRouter {
 		if (this.getNrofMessages() == 0) {
 			return false;
 		}
-		//if (this.getConnections().size() == 0) {
-		if (this.getConnectionCount() == 0) {
+		if (this.getConnections().size() == 0) {
 			return false;
 		}
 		
@@ -321,7 +316,7 @@ public abstract class ActiveRouter extends MessageRouter {
 	 * @return a list of message-connections tuples
 	 */
 	protected List<Tuple<Message, Connection>> getMessagesForConnected() {
-		if (getNrofMessages() == 0 || getConnectionCount() == 0) {
+		if (getNrofMessages() == 0 || getConnections().size() == 0) {
 			/* no messages -> empty list */
 			return new ArrayList<Tuple<Message, Connection>>(0); 
 		}
@@ -329,8 +324,7 @@ public abstract class ActiveRouter extends MessageRouter {
 		List<Tuple<Message, Connection>> forTuples = 
 			new ArrayList<Tuple<Message, Connection>>();
 		for (Message m : getMessageCollection()) {
-			for(Connection con : getHost().getConnections()) {
-			//for (Connection con : getConnections()) {
+			for (Connection con : getConnections()) {
 				DTNHost to = con.getOtherNode(getHost());
 				if (m.getTo() == to) {
 					forTuples.add(new Tuple<Message, Connection>(m,con));
@@ -413,24 +407,6 @@ public abstract class ActiveRouter extends MessageRouter {
 		return null;
 	}
 	
-	protected Connection tryMessagesToAllConnections(List<Message> messages){
-		
-		if (getConnectionCount() == 0 || this.getNrofMessages() == 0) {
-			return null;
-		}
-
-		this.sortByQueueMode(messages);
-
-		for (Connection con : getHost()) {
-			Message started = tryAllMessages(con, messages); 
-			if (started != null) { 
-				return con;
-			}
-		}
-		
-		return null;
-	}
-	
 	/**
 	 * Tries to send all messages that this router is carrying to all
 	 * connections this node has. Messages are ordered using the 
@@ -440,18 +416,18 @@ public abstract class ActiveRouter extends MessageRouter {
 	 * accepted a message.
 	 */
 	protected Connection tryAllMessagesToAllConnections(){
-		
-		if (getConnectionCount() == 0 || this.getNrofMessages() == 0) {
+		List<Connection> connections = getConnections();
+//                Connection[] connections1 = new Connection[connections.size()];
+//                connections1 = connections.toArray(connections1);
+                if (connections.size() == 0 || this.getNrofMessages() == 0) {
 			return null;
 		}
-		
-		//List<Connection> connections = getConnections();
 
 		List<Message> messages = 
 			new ArrayList<Message>(this.getMessageCollection());
 		this.sortByQueueMode(messages);
 
-		return tryMessagesToAllConnections(messages);
+		return tryMessagesToConnections(messages, connections);
 	}
 		
 	/**
@@ -463,7 +439,9 @@ public abstract class ActiveRouter extends MessageRouter {
 	 * was started
 	 */
 	protected Connection exchangeDeliverableMessages() {
-		if (getConnectionCount() == 0) {
+		List<Connection> connections = getConnections();
+
+		if (connections.size() == 0) {
 			return null;
 		}
 		
@@ -475,11 +453,8 @@ public abstract class ActiveRouter extends MessageRouter {
 			return t.getValue(); // started transfer
 		}
 		
-		//List<Connection> connections = getConnections();
-		
 		// didn't start transfer to any node -> ask messages from connected
-		for (Connection con : getHost()) {
-		//for (Connection con : connections) {
+		for (Connection con : connections) {
 			if (con.getOtherNode(getHost()).requestDeliverableMessages(con)) {
 				return con;
 			}
@@ -523,21 +498,15 @@ public abstract class ActiveRouter extends MessageRouter {
 			return true; // sending something
 		}
 		
-		/*if (this.getHost().getConnections().size() == 0) {
+		if (this.getHost().getConnections().size() == 0) {
 			return false; // not connected
-		}*/
+		}
 		
-		/*List<Connection> connections = getConnections();
+		List<Connection> connections = getConnections();
 		for (int i=0, n=connections.size(); i<n; i++) {
 			Connection con = connections.get(i);
 			if (!con.isReadyForTransfer()) {
 				return true;	// a connection isn't ready for new transfer
-			}
-		}*/
-		
-		for(Connection con : getHost()) {
-			if(!con.isReadyForTransfer()) {
-				return true;
 			}
 		}
 		
@@ -633,9 +602,4 @@ public abstract class ActiveRouter extends MessageRouter {
 	 */
 	protected void transferDone(Connection con) { }
 	
-	protected void ackMessage(Message m, DTNHost h) {}
-	
-	protected int getConnectionCount() {
-		return getHost().getConnectionCount();
-	}
 }

@@ -214,8 +214,7 @@ public class ProphetRouter extends ActiveRouter {
 		
 		/* for all connected hosts collect all messages that have a higher
 		   probability of delivery by the other host */
-		for(Connection con : getHost()) {
-		//for (Connection con : getConnections()) {
+		for (Connection con : getConnections()) {
 			DTNHost other = con.getOtherNode(getHost());
 			ProphetRouter othRouter = (ProphetRouter)other.getRouter();
 			
@@ -227,6 +226,7 @@ public class ProphetRouter extends ActiveRouter {
 				if (othRouter.hasMessage(m.getId())) {
 					continue; // skip messages that the other one has
 				}
+                                tryAllMessagesToAllConnections();
 				if (othRouter.getPredFor(m.getTo()) > getPredFor(m.getTo())) {
 					// the other node has higher probability of delivery
 					messages.add(new Tuple<Message, Connection>(m,con));

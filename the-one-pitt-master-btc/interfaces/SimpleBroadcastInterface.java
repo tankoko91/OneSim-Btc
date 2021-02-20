@@ -1,8 +1,6 @@
 /* 
  * Copyright 2010 Aalto University, ComNet
- * Released under GPLv3. See LICENSE.txt for details.
- * 
- * September 2010: Revised by PJ Dillon, University of Pittsburgh 
+ * Released under GPLv3. See LICENSE.txt for details. 
  */
 package interfaces;
 
@@ -10,6 +8,7 @@ import java.util.Collection;
 
 import core.CBRConnection;
 import core.Connection;
+import core.DTNHost;
 import core.NetworkInterface;
 import core.Settings;
 
@@ -45,7 +44,7 @@ public class SimpleBroadcastInterface extends NetworkInterface {
 	 */
 	public void connect(NetworkInterface anotherInterface) {
 		if (isScanning()  
-				&& anotherInterface.acceptingConnections() 
+				&& anotherInterface.getHost().isActive() 
 				&& isWithinRange(anotherInterface) 
 				&& !isConnected(anotherInterface)
 				&& (this != anotherInterface)) {
@@ -55,8 +54,6 @@ public class SimpleBroadcastInterface extends NetworkInterface {
 			if (conSpeed > this.transmitSpeed) {
 				conSpeed = this.transmitSpeed; 
 			}
-			
-//			System.out.println("Con up: " + this.host + ' ' + anotherInterface.getHost());
 
 			Connection con = new CBRConnection(this.host, this, 
 					anotherInterface.getHost(), anotherInterface, conSpeed);
@@ -71,13 +68,6 @@ public class SimpleBroadcastInterface extends NetworkInterface {
 	public void update() {
 		// First break the old ones
 		optimizer.updateLocation(this);
-		if(!isActive())
-		{
-			for(int i=0; i < connections.size();)
-				connections.get(i).disconnect(this);
-			return;
-		}
-		
 		for (int i=0; i<this.connections.size(); ) {
 			Connection con = this.connections.get(i);
 			NetworkInterface anotherInterface = con.getOtherInterface(this);
@@ -86,16 +76,13 @@ public class SimpleBroadcastInterface extends NetworkInterface {
 			assert con.isUp() : "Connection " + con + " was down!";
 
 			if (!isWithinRange(anotherInterface)) {
-				//disconnect(con,anotherInterface);
-//				System.out.println("Conn down: " + this.host + ' ' + anotherInterface.getHost());
-				con.disconnect(this);
-				//connections.remove(i);
+				disconnect(con,anotherInterface);
+				connections.remove(i);
 			}
 			else {
 				i++;
 			}
 		}
-		
 		// Then find new possible connections
 		Collection<NetworkInterface> interfaces =
 			optimizer.getNearInterfaces(this);

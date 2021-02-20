@@ -4,7 +4,7 @@
  */
 package movement;
 
-//import java.util.LinkedList;
+import java.util.LinkedList;
 import java.util.List;
 
 import movement.map.MapNode;
@@ -23,7 +23,7 @@ public class BusMovement extends MapRouteMovement {
 	private int id;
 	private static int nextID = 0;
 	private boolean startMode;
-	private List<MapNode> stops;
+	private List<Coord> stops;
 	
 	/**
 	 * Creates a new instance of BusMovement
@@ -37,13 +37,12 @@ public class BusMovement extends MapRouteMovement {
 		this.id = nextID++;
 		controlSystem.registerBus(this);
 		startMode = true;
-		//stops = new LinkedList<Coord>();
+		stops = new LinkedList<Coord>();
 		List<MapNode> stopNodes = super.getStops();
-		/*for (MapNode node : stopNodes) {
+		for (MapNode node : stopNodes) {
 			stops.add(node.getLocation().clone());
-		}*/
-		stops = stopNodes;
-		controlSystem.setBusStops(super.getRouteType(), stops);
+		}
+		controlSystem.setBusStops(stops);
 	}
 	
 	/**

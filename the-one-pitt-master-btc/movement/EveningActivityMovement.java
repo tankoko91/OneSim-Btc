@@ -75,7 +75,7 @@ public class EveningActivityMovement extends MapBasedMovement
 		pathFinder = new DijkstraPathFinder(null);
 		mode = WALKING_TO_MEETING_SPOT_MODE;
 		
-		
+		nrOfMeetingSpots = settings.getInt(NR_OF_MEETING_SPOTS_SETTING);
 		
 		minGroupSize = settings.getInt(MIN_GROUP_SIZE_SETTING);
 		maxGroupSize = settings.getInt(MAX_GROUP_SIZE_SETTING);
@@ -93,7 +93,6 @@ public class EveningActivityMovement extends MapBasedMovement
 		List<Coord> meetingSpotLocations = null;
 		
 		if (shoppingSpotsFile == null) {
-			nrOfMeetingSpots = settings.getInt(NR_OF_MEETING_SPOTS_SETTING);
 			meetingSpotLocations = new LinkedList<Coord>();
 			for (int i=0; i<mapNodes.length; i++) {
 				if ((i % (mapNodes.length/nrOfMeetingSpots)) == 0) {
@@ -121,13 +120,13 @@ public class EveningActivityMovement extends MapBasedMovement
 			}
 		}
 		
-		//this.id = nextID++;
+		this.id = nextID++;
 		
 		int scsID = settings.getInt(EVENING_ACTIVITY_CONTROL_SYSTEM_NR_SETTING);
 		
 		scs = EveningActivityControlSystem.getEveningActivityControlSystem(scsID);
 		scs.setRandomNumberGenerator(rng);
-		//scs.addEveningActivityNode(this);
+		scs.addEveningActivityNode(this);
 		scs.setMeetingSpots(meetingSpotLocations);
 		
 		maxPathLength = 100;
@@ -265,11 +264,6 @@ public class EveningActivityMovement extends MapBasedMovement
 	
 	public Coord getShoppingLocation() {
 		return scs.getMeetingSpotForID(id).clone();
-	}
-	
-	public void skipShopping() {
-		scs.skipEveningActivity(id);
-		
 	}
 	
 	

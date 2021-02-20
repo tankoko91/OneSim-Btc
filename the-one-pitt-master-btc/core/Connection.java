@@ -217,23 +217,5 @@ public abstract class Connection {
 				" from " + this.msgFromNode : "");
 	}
 
-	public void disconnect(NetworkInterface initiator)
-	{
-		setUpState(false);
-		
-		NetworkInterface other = initiator == fromInterface ? toInterface : fromInterface;
-		
-		initiator.disconnect(other);
-		
-		if(!fromInterface.removeConnection(this, initiator))
-			throw new SimError("No connection " + this + " found in " +
-					fromInterface);
-		if(!toInterface.removeConnection(this, initiator))
-			throw new SimError("No connection " + this + " found in " +
-					toInterface);
-		
-		toNode.connectionDown(this);
-		fromNode.connectionDown(this);
-	}
 }
 

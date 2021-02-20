@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import movement.MapBasedMovement;
-import movement.WorkingDayMovement;
 import movement.MovementModel;
 import movement.map.SimMap;
 import routing.MessageRouter;
@@ -22,9 +21,7 @@ import routing.MessageRouter;
  * simulation run.
  */
 public class SimScenario implements Serializable {
-
-	private static final long serialVersionUID = 1L;
-
+	
 	/** a way to get a hold of this... */	
 	private static SimScenario myinstance=null;
 
@@ -59,8 +56,6 @@ public class SimScenario implements Serializable {
 	
 	/** namespace for host group settings ({@value})*/
 	public static final String GROUP_NS = "Group";
-	/** Alternative secondary namespace to use for each group*/
-	public static final String GROUP_SECONDARY_NS = "additionalNamespace";
 	/** group id -setting id ({@value})*/
 	public static final String GROUP_ID_S = "groupID";
 	/** number of hosts in the group -setting id ({@value})*/
@@ -77,8 +72,6 @@ public class SimScenario implements Serializable {
 	public static final String INTERFACENAME_S = "interface";
 	/** application name in the group -setting id ({@value})*/
 	public static final String GAPPNAME_S = "application";
-	
-	public static final String ACTIVENESS_S = "activenessModel";
 
 	/** package where to look for movement models */
 	private static final String MM_PACKAGE = "movement.";
@@ -90,7 +83,7 @@ public class SimScenario implements Serializable {
 	
 	/** package where to look for application classes */
 	private static final String APP_PACKAGE = "applications.";
-	
+        
 	/** The world instance */
 	private World world;
 	/** List of hosts in this simulation */
@@ -339,22 +332,12 @@ public class SimScenario implements Serializable {
 				new ArrayList<NetworkInterface>();
 			Settings s = new Settings(GROUP_NS+i);
 			s.setSecondaryNamespace(GROUP_NS);
-			if(s.contains(GROUP_SECONDARY_NS))
-				s.setSecondaryNamespace(s.getSetting(GROUP_SECONDARY_NS));
-			
-			
 			String gid = s.getSetting(GROUP_ID_S);
 			int nrofHosts = s.getInt(NROF_HOSTS_S);
 			int nrofInterfaces = s.getInt(NROF_INTERF_S);
 			int appCount;
-			
-			if(nrofHosts == 0) continue;
 
 			// creates prototypes of MessageRouter and MovementModel
-			Activeness activeProto = null;
-			if(s.contains(ACTIVENESS_S))
-				activeProto = (Activeness)s.createIntializedObject(
-						s.getSetting(ACTIVENESS_S));
 			MovementModel mmProto = 
 				(MovementModel)s.createIntializedObject(MM_PACKAGE + 
 						s.getSetting(MOVEMENT_MODEL_S));
@@ -369,11 +352,10 @@ public class SimScenario implements Serializable {
 			// setup interfaces
 			for (int j=1;j<=nrofInterfaces;j++) {
 				String Intname = s.getSetting(INTERFACENAME_S+j);
-				Settings t = new Settings(Intname);
+				Settings t = new Settings(Intname); 
 				NetworkInterface mmInterface = 
 					(NetworkInterface)t.createIntializedObject(INTTYPE_PACKAGE + 
 							t.getSetting(INTTYPE_S));
-				mmInterface.setActivenessModel(activeProto);
 				mmInterface.setClisteners(connectionListeners);
 				mmNetInterfaces.add(mmInterface);
 			}
@@ -411,10 +393,6 @@ public class SimScenario implements Serializable {
 			if (mmProto instanceof MapBasedMovement) {
 				this.simMap = ((MapBasedMovement)mmProto).getMap();
 			}
-			else if(mmProto instanceof WorkingDayMovement) {
-				this.simMap = ((WorkingDayMovement)mmProto).getMap();
-			}
-				
 
 			// creates hosts of ith group
 			for (int j=0; j<nrofHosts; j++) {

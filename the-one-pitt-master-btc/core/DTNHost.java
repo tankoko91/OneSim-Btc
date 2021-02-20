@@ -3,11 +3,10 @@
  * Released under GPLv3. See LICENSE.txt for details. 
  */
 package core;
-import static btc.BlockChain.walletA;
-import btc.*;
+
+import btc.Wallet;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 
 import movement.MovementModel;
@@ -18,7 +17,7 @@ import routing.RoutingInfo;
 /**
  * A DTN capable host.
  */
-public class DTNHost implements Comparable<DTNHost>, Iterable<Connection> {
+public class DTNHost implements Comparable<DTNHost> {
 
     private static int nextAddress = 0;
     private int address;
@@ -37,8 +36,7 @@ public class DTNHost implements Comparable<DTNHost>, Iterable<Connection> {
     private List<NetworkInterface> net;
     private ModuleCommunicationBus comBus;
     private Wallet wallet;
-
-    
+        
     static {
         DTNSim.registerForReset(DTNHost.class.getCanonicalName());
         reset();
@@ -66,7 +64,7 @@ public class DTNHost implements Comparable<DTNHost>, Iterable<Connection> {
         this.name = groupId + address;
         this.net = new ArrayList<NetworkInterface>();
         this.wallet = new Wallet();
-        
+
         for (NetworkInterface i : interf) {
             NetworkInterface ni = i.replicate();
             ni.setHost(this);
@@ -94,11 +92,11 @@ public class DTNHost implements Comparable<DTNHost>, Iterable<Connection> {
             }
         }
     }
-    
+
     public Wallet getWallet() {
         return this.wallet;
     }
-
+    
     /**
      * Returns a new network interface address and increments the address for
      * subsequent calls.
@@ -131,7 +129,7 @@ public class DTNHost implements Comparable<DTNHost>, Iterable<Connection> {
      * @param router The router to set
      */
     private void setRouter(MessageRouter router) {
-        router.initialize(this, msgListeners);
+        router.init(this, msgListeners);
         this.router = router;
     }
 
@@ -149,6 +147,10 @@ public class DTNHost implements Comparable<DTNHost>, Iterable<Connection> {
      */
     public int getAddress() {
         return this.address;
+    }
+
+    public void setAddress(int address) {
+        this.address = address;
     }
 
     /**
@@ -324,7 +326,7 @@ public class DTNHost implements Comparable<DTNHost>, Iterable<Connection> {
         if (up) {
             ni.createConnection(no);
         } else {
-            ni.destroyConnection(anotherHost);
+            ni.destroyConnection(no);
         }
     }
 
@@ -537,18 +539,6 @@ public class DTNHost implements Comparable<DTNHost>, Iterable<Connection> {
      */
     public int compareTo(DTNHost h) {
         return this.getAddress() - h.getAddress();
-    }
-
-    public int getConnectionCount() {
-        int sum = 0;
-        for (NetworkInterface i : net) {
-            sum += i.connectionCount();
-        }
-        return sum;
-    }
-
-    public Iterator<Connection> iterator() {
-        return new ConnectionIterator(this);
     }
 
 }
