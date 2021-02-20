@@ -55,7 +55,7 @@ import routing.RoutingDecisionEngine;
  * @author PJ Dillon, University of Pittsburgh
  *
  */
-public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDetectionEngine
+public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDetectionEngine, InterfaceGetTrustToken
 {
 	/** Community Detection Algorithm to employ -setting id {@value} */
 	public static final String COMMUNITY_ALG_SETTING = "communityDetectAlg";
@@ -67,6 +67,7 @@ public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDet
 	
 	protected CommunityDetection community;
 	protected Centrality centrality;
+        protected List<Message> trustToken;
 	
 	/**
 	 * Constructs a DistributedBubbleRap Decision Engine based upon the settings
@@ -103,6 +104,7 @@ public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDet
 		this.centrality = proto.centrality.replicate();
 		startTimestamps = new HashMap<DTNHost, Double>();
 		connHistory = new HashMap<DTNHost, List<Duration>>();
+                trustToken = new LinkedList<Message>();
 	}
 
 	public void connectionUp(DTNHost thisHost, DTNHost peer){}
@@ -177,39 +179,54 @@ public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDet
 
 	public boolean shouldSendMessageToHost(Message m, DTNHost otherHost, DTNHost thisHost)
 	{
-		if(m.getTo() == otherHost) return true; // trivial to deliver to final dest
-		
-		/*
-		 * Here is where we decide when to forward along a message. 
-		 * 
-		 * DiBuBB works such that it first forwards to the most globally central
-		 * nodes in the network until it finds a node that has the message's 
-		 * destination as part of it's local community. At this point, it uses 
-		 * the local centrality metric to forward a message within the community. 
-		 */
-		DTNHost dest = m.getTo();
-		DistributedBubbleRap de = getOtherDecisionEngine(otherHost);
-		// Which of us has the dest in our local communities, this host or the peer
-		boolean peerInCommunity = de.commumesWithHost(dest);
-		boolean meInCommunity = this.commumesWithHost(dest);
-		
-		if(peerInCommunity && !meInCommunity) // peer is in local commun. of dest
-			return true;
-		else if(!peerInCommunity && meInCommunity) // I'm in local commun. of dest
-			return false;
-		else if(peerInCommunity) // we're both in the local community of destination
-		{
-			// Forward to the one with the higher local centrality (in our community)
-			if(de.getLocalCentrality() > this.getLocalCentrality())
-				return true;
-			else
-				return false;
-		}
-		// Neither in local community, forward to more globally central node
-		else if(de.getGlobalCentrality() > this.getGlobalCentrality())
-			return true;
-		
+                if(m.getTo() == otherHost){
+                    trustToken.add(m);
+                    return true; // trivial to deliver to final dest
+                }
+               
+                // Just send message to Volunteer
+                String oth = otherHost.toString();
+                String thi = thisHost.toString();
+                if(oth.startsWith("Vol")){
+                    /*
+                     * Here is where we decide when to forward along a message. 
+                     * 
+                     * DiBuBB works such that it first forwards to the most globally central
+                     * nodes in the network until it finds a node that has the message's 
+                     * destination as part of it's local community. At this point, it uses 
+                     * the local centrality metric to forward a message within the community. 
+                     */
+                    DTNHost dest = m.getTo();
+                    DistributedBubbleRap de = getOtherDecisionEngine(otherHost);
+                    // Which of us has the dest in our local communities, this host or the peer
+                    boolean peerInCommunity = de.commumesWithHost(dest);
+                    boolean meInCommunity = this.commumesWithHost(dest);
+
+                    if(peerInCommunity && !meInCommunity){ // peer is in local commun. of dest
+                        if(thi.startsWith("Vol")) trustToken.add(m);
+                        return true;
+                    }
+                    else if(!peerInCommunity && meInCommunity) // I'm in local commun. of dest
+                            return false;
+                    else if(peerInCommunity) // we're both in the local community of destination
+                    {
+                            // Forward to the one with the higher local centrality (in our community)
+                            if(de.getLocalCentrality() > this.getLocalCentrality()){
+                                if(thi.startsWith("Vol")) trustToken.add(m);
+                                return true;
+                            } else{
+                                return false;
+                            }
+                    }
+                    // Neither in local community, forward to more globally central node
+                    else if(de.getGlobalCentrality() > this.getGlobalCentrality()){
+                        if(thi.startsWith("Vol")) trustToken.add(m);
+                        return true;
+                    }
+                }
+                
 		return false;
+                
 	}
 
 	public boolean shouldDeleteSentMessage(Message m, DTNHost otherHost)
@@ -259,6 +276,12 @@ public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDet
 
 	public Set<DTNHost> getLocalCommunity() {return this.community.getLocalCommunity();}
 
+        
     @Override
     public void update(DTNHost thisHost) {}
+
+    @Override
+    public List<Message> getTrustToken() {
+        return trustToken;
+    }
 }
