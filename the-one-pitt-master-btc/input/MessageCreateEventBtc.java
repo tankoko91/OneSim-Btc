@@ -4,9 +4,12 @@
  */
 package input;
 
+import btc.Wallet;
 import core.DTNHost;
 import core.Message;
 import core.World;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * External event for creating a message.
@@ -44,8 +47,10 @@ public class MessageCreateEventBtc extends MessageEvent {
 		DTNHost from = world.getNodeByAddress(this.fromAddr);			
 		
 		Message m = new Message(from, to, this.id, this.size);
-		m.setResponseSize(this.responseSize);
+		List<Wallet> wallets = new LinkedList<Wallet>();
+                m.setResponseSize(this.responseSize);
                 m.addProperty("rewards", this.price);
+                m.addProperty("wallets", wallets);
 		from.createNewMessage(m);
 	}
 	
