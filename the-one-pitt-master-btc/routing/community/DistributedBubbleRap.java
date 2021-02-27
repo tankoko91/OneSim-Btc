@@ -56,7 +56,7 @@ import routing.RoutingDecisionEngine;
  * @author PJ Dillon, University of Pittsburgh
  *
  */
-public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDetectionEngine, InterfaceGetTrustToken
+public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDetectionEngine
 {
 	/** Community Detection Algorithm to employ -setting id {@value} */
 	public static final String COMMUNITY_ALG_SETTING = "communityDetectAlg";
@@ -68,8 +68,7 @@ public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDet
 	
 	protected CommunityDetection community;
 	protected Centrality centrality;
-        protected List<Message> trustToken;
-	protected List<Message> messageDelivered;
+        
         
 	/**
 	 * Constructs a DistributedBubbleRap Decision Engine based upon the settings
@@ -106,8 +105,7 @@ public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDet
 		this.centrality = proto.centrality.replicate();
 		startTimestamps = new HashMap<DTNHost, Double>();
 		connHistory = new HashMap<DTNHost, List<Duration>>();
-                trustToken = new LinkedList<Message>();
-                messageDelivered = new LinkedList<Message>();
+                
 	}
 
 	public void connectionUp(DTNHost thisHost, DTNHost peer){}
@@ -172,7 +170,6 @@ public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDet
 
 	public boolean isFinalDest(Message m, DTNHost aHost)
 	{
-                messageDelivered.add(m);
 		return m.getTo() == aHost; // Unicast Routing
 	}
 
@@ -185,8 +182,6 @@ public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDet
 	{
                 
                 if(m.getTo() == otherHost){
-                    addTrustToken(thisHost, m);
-                    addWalletToMessage(m, thisHost);
                     return true; // trivial to deliver to final dest
                 }
                
@@ -208,8 +203,6 @@ public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDet
                     boolean meInCommunity = this.commumesWithHost(dest);
 
                     if(peerInCommunity && !meInCommunity){ // peer is in local commun. of dest
-                        addTrustToken(thisHost, m);
-                        addWalletToMessage(m, thisHost);
                         return true;
                     }
                     else if(!peerInCommunity && meInCommunity) // I'm in local commun. of dest
@@ -218,8 +211,6 @@ public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDet
                     {
                             // Forward to the one with the higher local centrality (in our community)
                             if(de.getLocalCentrality() > this.getLocalCentrality()){
-                                addTrustToken(thisHost, m);
-                                addWalletToMessage(m, thisHost);
                                 return true;
                             } else{
                                 return false;
@@ -227,8 +218,6 @@ public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDet
                     }
                     // Neither in local community, forward to more globally central node
                     else if(de.getGlobalCentrality() > this.getGlobalCentrality()){
-                        addTrustToken(thisHost, m);
-                        addWalletToMessage(m, thisHost);
                         return true;
                     }
                 }
@@ -284,11 +273,6 @@ public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDet
 
 	public Set<DTNHost> getLocalCommunity() {return this.community.getLocalCommunity();}
 
-        public void addTrustToken(DTNHost thisHost, Message m){
-            String me = thisHost.toString();
-            if(me.startsWith("Vol")) trustToken.add(m);
-        }
-        
         private boolean isVolunteer(DTNHost otherHost) {
             if(otherHost.toString().startsWith("Vol")) return true;
             return false;
@@ -303,21 +287,11 @@ public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDet
             if(otherHost.toString().startsWith("OBS")) return true;
             return false;
         }
-
-        private void addWalletToMessage(Message m, DTNHost thisHost) {
-            List<Wallet> wallets = new LinkedList<Wallet>();
-            wallets = (List<Wallet>) m.getProperty("wallets");
-            wallets.add(thisHost.getWallet());
-            m.updateProperty("wallets", wallets);
-        }
         
     @Override
     public void update(DTNHost thisHost) {}
 
-    @Override
-    public List<Message> getTrustToken() {
-        return trustToken;
-    }
+    
 
 
 }
