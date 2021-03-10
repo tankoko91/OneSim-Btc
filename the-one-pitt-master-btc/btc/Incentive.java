@@ -52,14 +52,12 @@ public class Incentive {
         
         
         if(trustToken.containsKey(host)){
-            System.out.println("ada");
             temp = trustToken.get(host);
             Iterator<Message> iter1 = message.iterator();
             while(iter1.hasNext()){
                 temp.add(iter1.next());
             }
         } else{
-            System.out.println("takda");
             temp = message;
         }
         trustToken.put(host, temp);
