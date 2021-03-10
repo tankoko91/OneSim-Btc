@@ -15,16 +15,19 @@ import java.util.*;
 public class Incentive {
 
     private static Map<Message, List<Tuple<Wallet, Double>>> ack = new HashMap<Message, List<Tuple<Wallet, Double>>>();
+    private static Map<DTNHost, List<Message>> trustToken = new HashMap<DTNHost, List<Message>>();
     
 
     public Incentive() {
     }
 
     //set ack/verifying message path
-    public static void setAck(Message m, List<DTNHost> nodes, List<Wallet> wallets) {
+    public static void setAck(Message m) {
         int i = 0;
-        List<Wallet> verified = new ArrayList<Wallet>();
+        List<DTNHost> nodes = m.getHops(); 
+        List<Wallet> wallets = (List<Wallet>) m.getProperty("wallets");
         
+        List<Wallet> verified = new ArrayList<Wallet>();
         //verifying message path + signature
         for (DTNHost host : nodes) {
             if (host.getWallet() == wallets.get(i)) {
@@ -35,7 +38,7 @@ public class Incentive {
         
         //assign incentive to each wallet
         List<Tuple<Wallet, Double>> incentive = new ArrayList<Tuple<Wallet, Double>>();
-        Double amount = new Double(verified.size());
+        Double amount = new Double((double) m.getProperty("rewards")/verified.size());
         for (Wallet toWallet : verified) {
             incentive.add(new Tuple(toWallet,amount));
         }
@@ -44,5 +47,30 @@ public class Incentive {
         ack.put(m, incentive);
     }
     
-    
+    public static void setTrustToken(DTNHost host, List<Message> message) {
+        List<Message> temp = new LinkedList<Message>();
+        
+        
+        if(trustToken.containsKey(host)){
+            System.out.println("ada");
+            temp = trustToken.get(host);
+            Iterator<Message> iter1 = message.iterator();
+            while(iter1.hasNext()){
+                temp.add(iter1.next());
+            }
+        } else{
+            System.out.println("takda");
+            temp = message;
+        }
+        trustToken.put(host, temp);
+    }
+
+    public static Map<Message, List<Tuple<Wallet, Double>>> getAck() {
+        return ack;
+    }
+
+    public static Map<DTNHost, List<Message>> getTrustToken() {
+        return trustToken;
+    }
+
 }

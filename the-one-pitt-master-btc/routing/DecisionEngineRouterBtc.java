@@ -1,5 +1,6 @@
 package routing;
 
+import btc.Incentive;
 import btc.Wallet;
 import java.util.*;
 
@@ -234,7 +235,8 @@ public class DecisionEngineRouterBtc extends ActiveRouter implements InterfaceGe
         DecisionEngineRouterBtc otherRouter = (DecisionEngineRouterBtc) otherNode.getRouter();
         if (con.isUp()) {
             decider.connectionUp(myHost, otherNode);
-
+            Incentive.setTrustToken(myHost, trustToken);
+            trustToken = new LinkedList<Message>();
             /*
 * This part is a little confusing because there's a problem we have to
 * avoid. When a connection comes up, we're assuming here that the two
@@ -377,6 +379,7 @@ public class DecisionEngineRouterBtc extends ActiveRouter implements InterfaceGe
         }
 
         if (isFirstDelivery) {
+            Incentive.setAck(aMessage);
             this.deliveredMessages.put(id, aMessage);
         }
 
