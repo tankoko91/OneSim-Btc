@@ -4,10 +4,9 @@
  */
 package core;
 
-import btc.Wallet;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import btc.*;
+import static btc.BlockChain.*;
+import java.util.*;
 
 import movement.MovementModel;
 import movement.Path;
@@ -35,7 +34,10 @@ public class DTNHost implements Comparable<DTNHost> {
     private List<MovementListener> movListeners;
     private List<NetworkInterface> net;
     private ModuleCommunicationBus comBus;
+    
     private Wallet wallet;
+    
+    
         
     static {
         DTNSim.registerForReset(DTNHost.class.getCanonicalName());
@@ -63,7 +65,6 @@ public class DTNHost implements Comparable<DTNHost> {
         this.address = getNextAddress();
         this.name = groupId + address;
         this.net = new ArrayList<NetworkInterface>();
-        this.wallet = new Wallet();
 
         for (NetworkInterface i : interf) {
             NetworkInterface ni = i.replicate();
@@ -91,10 +92,24 @@ public class DTNHost implements Comparable<DTNHost> {
                 l.initialLocation(this, this.location);
             }
         }
+        
+        this.wallet = new Wallet();
+
     }
 
     public Wallet getWallet() {
         return this.wallet;
+    }
+    
+    public void setInitBalance(float balance){
+        if(balance>0){
+            genesisTransaction = new Transaction(coinbase.publicKey, wallet.publicKey, balance, null);
+            genesisTransaction.generateSignature(coinbase.privateKey);	 //manually sign the genesis transaction	
+            genesisTransaction.transactionId = "0"; //manually set the transaction id
+            genesisTransaction.outputs.add(new TransactionOutput(genesisTransaction.reciepient, genesisTransaction.value, genesisTransaction.transactionId)); //manually add the Transactions Output
+            UTXOs.put(genesisTransaction.outputs.get(0).id, genesisTransaction.outputs.get(0)); //its important to store our first transaction in the UTXOs list.
+            BlockChain.addTransactionGenesis(genesisTransaction);
+        }
     }
     
     /**
@@ -540,5 +555,6 @@ public class DTNHost implements Comparable<DTNHost> {
     public int compareTo(DTNHost h) {
         return this.getAddress() - h.getAddress();
     }
+    
 
 }

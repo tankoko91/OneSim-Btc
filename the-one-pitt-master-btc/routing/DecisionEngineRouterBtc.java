@@ -84,7 +84,7 @@ import routing.community.InterfaceGetTrustToken;
  */
 public class DecisionEngineRouterBtc extends ActiveRouter implements InterfaceGetTrustToken{
 
-    public static final String PUBSUB_NS = "DecisionEngineRouter";
+    public static final String PUBSUB_NS = "DecisionEngineRouterBtc";
     public static final String ENGINE_SETTING = "decisionEngine";
     public static final String TOMBSTONE_SETTING = "tombstones";
     public static final String CONNECTION_STATE_SETTING = "";
@@ -97,7 +97,6 @@ public class DecisionEngineRouterBtc extends ActiveRouter implements InterfaceGe
     
     protected Set<String> tombstones;
     
-
     /**
      * Used to save state machine when new connections are made. See comment in
      * changedConnection()
@@ -236,7 +235,9 @@ public class DecisionEngineRouterBtc extends ActiveRouter implements InterfaceGe
         if (con.isUp()) {
             decider.connectionUp(myHost, otherNode);
             Incentive.setTrustToken(myHost, trustToken);
-            trustToken = new LinkedList<Message>();
+//            System.out.println(getHost());
+//            System.out.println(trustToken);
+//            trustToken.clear();
             /*
 * This part is a little confusing because there's a problem we have to
 * avoid. When a connection comes up, we're assuming here that the two
@@ -379,7 +380,7 @@ public class DecisionEngineRouterBtc extends ActiveRouter implements InterfaceGe
         }
 
         if (isFirstDelivery) {
-            Incentive.setAck(aMessage);
+//            Incentive.setAck(aMessage);
             this.deliveredMessages.put(id, aMessage);
         }
 
@@ -479,7 +480,7 @@ public class DecisionEngineRouterBtc extends ActiveRouter implements InterfaceGe
         }
     }
     
-     public void addTrustToken(DTNHost thisHost, Message m){
+    public void addTrustToken(DTNHost thisHost, Message m){
             String me = thisHost.toString();
             if(me.startsWith("Vol")) trustToken.add(m);
         }

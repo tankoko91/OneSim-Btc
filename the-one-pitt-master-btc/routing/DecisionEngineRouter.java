@@ -1,8 +1,26 @@
 package routing;
 
+import btc.*;
+import btc.Incentive;
+import btc.Wallet;
 import java.util.*;
 
 import core.*;
+import org.bouncycastle.asn1.esf.OtherHash;
+import static routing.MessageRouter.DENIED_DELIVERED;
+import static routing.MessageRouter.DENIED_OLD;
+import static routing.MessageRouter.RCV_OK;
+import static routing.MessageRouter.TRY_LATER_BUSY;
+import routing.community.InterfaceGetTrustToken;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.SecureRandom;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.crypto.Cipher;
+import org.antlr.tool.Grammar;
 
 /**
  * This class overrides ActiveRouter in order to inject calls to a
@@ -79,19 +97,28 @@ import core.*;
  *
  * @author PJ Dillon, University of Pittsburgh
  */
-public class DecisionEngineRouter extends ActiveRouter {
+public class DecisionEngineRouter extends ActiveRouter implements InterfaceGetTrustToken {
 
     public static final String PUBSUB_NS = "DecisionEngineRouter";
     public static final String ENGINE_SETTING = "decisionEngine";
     public static final String TOMBSTONE_SETTING = "tombstones";
     public static final String CONNECTION_STATE_SETTING = "";
-    
 
     protected boolean tombstoning;
     protected RoutingDecisionEngine decider;
     protected List<Tuple<Message, Connection>> outgoingMessages;
 
     protected Set<String> tombstones;
+
+    //trusttoken yang dibawa oleh tiap2 node
+    protected List<Message> trustToken;
+
+    private final String RSA = "RSA";
+    ;
+            
+    protected KeyPair keyPair;
+    protected Map<DTNHost, PublicKey> publicKeys;
+    protected Map<String, Transaction> deposits;
 
     /**
      * Used to save state machine when new connections are made. See comment in
@@ -119,6 +146,9 @@ public class DecisionEngineRouter extends ActiveRouter {
             tombstones = new HashSet<String>(10);
         }
         conStates = new HashMap<Connection, Integer>(4);
+        trustToken = new LinkedList<Message>();
+        publicKeys = new HashMap<DTNHost, PublicKey>();
+        deposits = new HashMap<String, Transaction>();
     }
 
     public DecisionEngineRouter(DecisionEngineRouter r) {
@@ -131,6 +161,11 @@ public class DecisionEngineRouter extends ActiveRouter {
             tombstones = new HashSet<String>(10);
         }
         conStates = new HashMap<Connection, Integer>(4);
+
+        //inisialisasi trusttoken
+        trustToken = new LinkedList<Message>();
+        publicKeys = new HashMap<DTNHost, PublicKey>();
+        deposits = new HashMap<String, Transaction>();
     }
 
 //@Override
@@ -147,6 +182,11 @@ public class DecisionEngineRouter extends ActiveRouter {
             m.setTtl(this.msgTtl);
             addToMessages(m, true);
 
+            //proses deposit
+            Wallet fromWallet = getHost().getWallet();
+            Wallet toWallet = m.getTo().getWallet();
+            float price = (float) m.getProperty("rewards");
+            deposits.put(m.toString(), fromWallet.sendFunds(toWallet.publicKey, price));
             findConnectionsForNewMessage(m, getHost());
             return true;
         }
@@ -229,6 +269,51 @@ public class DecisionEngineRouter extends ActiveRouter {
         if (con.isUp()) {
             decider.connectionUp(myHost, otherNode);
 
+            //jika observer bertemu dengan volunteer
+            if (isObserver(getHost()) && isVolunteer(otherNode)) {
+                Map<String, Transaction> otherDeposits=((DecisionEngineRouter) otherNode.getRouter()).getDeposits();
+                if(!otherDeposits.isEmpty()){
+                    for (Map.Entry<String, Transaction> entry : otherDeposits.entrySet()) {
+                        Incentive.setDeposit(entry.getKey(), entry.getValue());
+                    }
+                    otherDeposits.clear();
+                }
+                
+                //jika trust token volunteer tidak kosong
+                if (!otherRouter.getTrustToken().isEmpty()) {
+                    //meminta trusttoken volunteer yang ditemui, dan dicatat ke cloud
+                    Incentive.setTrustToken(otherNode, otherRouter.getTrustToken());
+                    //hapustrust token yang dibawa volunteer
+                    otherRouter.getTrustToken().clear();
+                }
+
+                //jika ack di cloud tidak kosong
+                if (!Incentive.getAck().isEmpty()) {
+                    //membuat incentive
+                    Incentive.createIncentive();
+                }
+
+                if (!Incentive.getPayment().isEmpty()) {
+                    //memproses payment
+                    Incentive.processPayment();
+                }
+            }
+
+            //jika volunteer bertemu shelter akan meminta deposit
+            if (isVolunteer(getHost()) && isShelter(otherNode)) {
+                Map<String, Transaction> otherDeposits=((DecisionEngineRouter) otherNode.getRouter()).getDeposits();
+                if (!otherDeposits.isEmpty()) {
+//                    MessageRouter mroute = otherNode.getRouter();
+//                    DecisionEngineRouter deRoute = (DecisionEngineRouter) mroute;
+                    //volunteere meminta map shelter
+                    for (Map.Entry<String, Transaction> entry : otherDeposits.entrySet()) {
+                        this.deposits.put(entry.getKey(), entry.getValue());
+                    }
+                    //hapus map shelter
+                    otherDeposits.clear();
+                }
+            }
+
             /*
 * This part is a little confusing because there's a problem we have to
 * avoid. When a connection comes up, we're assuming here that the two
@@ -261,6 +346,9 @@ public class DecisionEngineRouter extends ActiveRouter {
             for (Message m : msgs) {
                 if (decider.shouldSendMessageToHost(m, otherNode, this.getHost())) {
                     outgoingMessages.add(new Tuple<Message, Connection>(m, con));
+                    addTrustToken(this.getHost(), m);
+                    addWalletToMessage(m, this.getHost());
+                    addSignatureToMessage(m, this.getHost());
                 }
             }
         } else {
@@ -282,9 +370,36 @@ public class DecisionEngineRouter extends ActiveRouter {
         }
     }
 
+    public Map<String, Transaction> getDeposits() {
+        return deposits;
+    }
+
     protected void doExchange(Connection con, DTNHost otherHost) {
         conStates.put(con, 1);
         decider.doExchangeForNewConnection(con, otherHost);
+
+        //jika belum memiliki keypair, maka generate keypair
+        if (keyPair == null) {
+            try {
+                keyPair = generateRSAKkeyPair();
+            } catch (Exception ex) {
+                Logger.getLogger(DecisionEngineRouter.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            publicKeys.put(getHost(), keyPair.getPublic());
+        }
+
+        MessageRouter otherRouter = otherHost.getRouter();
+        DecisionEngineRouter otherDe = (DecisionEngineRouter) otherRouter;
+
+        //membaca map public keys milik otherhost, kemudian simpan ke map public keys sendiri
+        for (Map.Entry<DTNHost, PublicKey> entry : otherDe.getPublicKeys().entrySet()) {
+            publicKeys.put(entry.getKey(), entry.getValue());
+        }
+
+//        System.out.println(getHost() + " : ");
+//        for(Map.Entry<DTNHost, PublicKey> entry : otherDe.getPublicKeys().entrySet()){
+//            System.out.println(entry.getKey() + ", " + entry.getValue());
+//        }
     }
 
     /**
@@ -306,7 +421,7 @@ public class DecisionEngineRouter extends ActiveRouter {
         }
 
         retVal = con.startTransfer(getHost(), m);
-        
+
         if (retVal == RCV_OK) { // started transfer
             addToSendingConnections(con);
         } else if (tombstoning && retVal == DENIED_DELIVERED) {
@@ -369,8 +484,11 @@ public class DecisionEngineRouter extends ActiveRouter {
         }
 
         if (isFirstDelivery) {
+//            Incentive.setAck(aMessage);
+            Incentive.setAck(aMessage, this.publicKeys);
             this.deliveredMessages.put(id, aMessage);
         }
+        this.deliveredMessages.put(id, aMessage);
 
         for (MessageListener ml : this.mListeners) {
             ml.messageTransferred(aMessage, from, getHost(),
@@ -427,9 +545,9 @@ public class DecisionEngineRouter extends ActiveRouter {
     @Override
     public void update() {
         super.update();
-        
+
         decider.update(getHost());
-        
+
         if (!canStartTransfer() || isTransferring()) {
             return; // nothing to transfer or is currently transferring
         }
@@ -462,7 +580,106 @@ public class DecisionEngineRouter extends ActiveRouter {
 // if(m.getId().equals("M14"))
 // System.out.println("Adding attempt for M14 from: " + getHost() + " to: " + other);
                 outgoingMessages.add(new Tuple<Message, Connection>(m, c));
+
+                //mencatat trusttoken ke dirinya sendiri
+                addTrustToken(this.getHost(), m);
+                //menambahkan wallet/catatan ke pesan
+                addWalletToMessage(m, this.getHost());
+                addSignatureToMessage(m, this.getHost());
             }
         }
     }
+
+    public void addTrustToken(DTNHost thisHost, Message m) {
+        String me = thisHost.toString();
+        if (me.startsWith("Vol")) {
+            trustToken.add(m);
+        }
+    }
+
+    private boolean isShelter(DTNHost otherHost) {
+        if (otherHost.toString().startsWith("She")) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean isVolunteer(DTNHost otherHost) {
+        if (otherHost.toString().startsWith("Vol")) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean isOpCen(DTNHost otherHost) {
+        if (otherHost.toString().startsWith("OpC")) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean isObserver(DTNHost otherHost) {
+        if (otherHost.toString().startsWith("OBS")) {
+            return true;
+        }
+        return false;
+    }
+
+    private void addWalletToMessage(Message m, DTNHost thisHost) {
+        List<Wallet> wallets = new LinkedList<Wallet>();
+        wallets = (List<Wallet>) m.getProperty("wallets");
+        wallets.add(thisHost.getWallet());
+        m.updateProperty("wallets", wallets);
+    }
+
+    private void addSignatureToMessage(Message m, DTNHost thisHost) {
+        List<byte[]> signatures = new LinkedList<byte[]>();
+        signatures = (List<byte[]>) m.getProperty("signatures");
+
+        String signature = m.toString() + thisHost.toString();
+
+        try {
+            signatures.add(do_RSAEncryption(signature, keyPair.getPrivate()));
+        } catch (Exception ex) {
+            Logger.getLogger(DecisionEngineRouter.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+        m.updateProperty("signatures", signatures);
+    }
+
+    @Override
+    public List<Message> getTrustToken() {
+        return trustToken;
+    }
+
+    public Map<DTNHost, PublicKey> getPublicKeys() {
+        return publicKeys;
+    }
+
+    public KeyPair generateRSAKkeyPair()
+            throws Exception {
+        SecureRandom secureRandom
+                = new SecureRandom();
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(RSA);
+
+        keyPairGenerator.initialize(
+                2048, secureRandom);
+        return keyPairGenerator
+                .generateKeyPair();
+    }
+
+    public byte[] do_RSAEncryption(
+            String plainText,
+            PrivateKey privateKey)
+            throws Exception {
+        Cipher cipher
+                = Cipher.getInstance(RSA);
+
+        cipher.init(
+                Cipher.ENCRYPT_MODE, privateKey);
+
+        return cipher.doFinal(
+                plainText.getBytes());
+    }
+
 }

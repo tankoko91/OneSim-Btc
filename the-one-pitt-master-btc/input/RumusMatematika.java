@@ -14,16 +14,20 @@ public class RumusMatematika {
     public RumusMatematika() {
     }
     
-    public double bagi(double a, double b){
-        return a/b;
+    public float bagi(double a, double b){
+        return (float) (a/b);
     }
     
-    public double kali(double a, double b){
-        return a*b;
+    public float kali(double a, double b){
+        return (float) (a*b);
     }
     
-    public double bulat(double a, int b){
-        double bulat = Math.round(a*Math.pow(10, b))/Math.pow(10, b);
+    public float kurang(float a, float b){
+        return (a-b);
+    }
+    
+    public float bulat(float a, int b){
+        float bulat = (float) Math.round(a*Math.pow(10, b))/(float) Math.pow(10, b);
         return bulat;
     }
 }

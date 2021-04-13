@@ -42,30 +42,30 @@ public class ReportTarikIncentive extends Report {
     @Override
     public void done() {
         String cetak = "";
-//                Map<Message, List<Tuple<Wallet, Double>>> ack = Incentive.getAck();
-//                for (Map.Entry<Message, List<Tuple<Wallet, Double>>> entry : ack.entrySet()) {
-//                    cetak += entry.getKey() + ":\n";
-//                    
-//                    Iterator<Tuple<Wallet, Double>> iter = entry.getValue().iterator();
-//                    while(iter.hasNext()){
-//                        Tuple<Wallet, Double> tup = iter.next();
-//                        cetak += tup.getKey().publicKey;
-//                        cetak += tup.getValue() + "\n";
-//                    }
-//                    cetak += "\n";
-//                }
-
-                Map<DTNHost, List<Message>> trustToken = Incentive.getTrustToken();
-                for (Map.Entry<DTNHost, List<Message>> entry : trustToken.entrySet()) {
-                    cetak += entry.getKey() + ":\n";
+                Map<Message, List<Tuple<Wallet, Float>>> ack = Incentive.getAck();
+                for (Map.Entry<Message, List<Tuple<Wallet, Float>>> entry : ack.entrySet()) {
+                    cetak += entry.getKey() + "(" + entry.getKey().getProperty("rewards") + ")" + ":\n";
                     
-                    Iterator<Message> iter = entry.getValue().iterator();
+                    Iterator<Tuple<Wallet, Float>> iter = entry.getValue().iterator();
                     while(iter.hasNext()){
-                        Message m = iter.next();
-                        cetak += m + ", ";
+                        Tuple<Wallet, Float> tup = iter.next();
+                        cetak += tup.getKey().publicKey;
+                        cetak += tup.getValue() + "\n";
                     }
                     cetak += "\n";
                 }
+
+//                Map<DTNHost, List<Message>> trustToken = Incentive.getTrustToken();
+//                for (Map.Entry<DTNHost, List<Message>> entry : trustToken.entrySet()) {
+//                    cetak += entry.getKey() + ":\n";
+//                    
+//                    Iterator<Message> iter = entry.getValue().iterator();
+//                    while(iter.hasNext()){
+//                        Message m = iter.next();
+//                        cetak += m + ", ";
+//                    }
+//                    cetak += "\n";
+//                }
                 
         write(cetak);
         super.done();

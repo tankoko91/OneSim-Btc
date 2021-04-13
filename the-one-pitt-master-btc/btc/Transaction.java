@@ -37,7 +37,9 @@ public class Transaction {
 
 		//Checks if transaction is valid:
 		if(getInputsValue() < BlockChain.minimumTransaction) {
+                    System.out.println("============================");
 			System.out.println("Transaction Inputs too small: " + getInputsValue());
+                        System.out.println(getInputsValue());
 			System.out.println("Please enter the amount greater than " + BlockChain.minimumTransaction);
 			return false;
 		}
@@ -67,6 +69,7 @@ public class Transaction {
 		for(TransactionInput i : inputs) {
 			if(i.UTXO == null) continue; //if Transaction can't be found skip it, This behavior may not be optimal.
 			total += i.UTXO.value;
+//                        System.out.println("total : "+total);
 		}
 		return total;
 	}

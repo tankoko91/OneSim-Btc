@@ -12,7 +12,7 @@ import core.SimScenario;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
-import routing.DecisionEngineRouterBtc;
+import routing.DecisionEngineRouter;
 import routing.MessageRouter;
 import routing.RoutingDecisionEngine;
 import routing.community.InterfaceGetTrustToken;
@@ -41,12 +41,12 @@ public class ReportTarikData extends Report {
        
         for(DTNHost host : nodes){
             MessageRouter r = host.getRouter();
-            if(!(r instanceof DecisionEngineRouterBtc)){
+            if(!(r instanceof DecisionEngineRouter)){
                 continue;
             }
            
             
-            DecisionEngineRouterBtc fe = (DecisionEngineRouterBtc) r;
+            DecisionEngineRouter fe = (DecisionEngineRouter) r;
             List<Message> a = new LinkedList<Message>();
             a = fe.getTrustToken();
             

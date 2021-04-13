@@ -17,7 +17,7 @@ import java.util.List;
 public class MessageCreateEventBtc extends MessageEvent {
 	private int size;
 	private int responseSize;
-        private double price;
+        private float price;
 	
 	/**
 	 * Creates a message creation event with a optional response request
@@ -30,7 +30,7 @@ public class MessageCreateEventBtc extends MessageEvent {
 	 * @param time Time, when the message is created
 	 */
 	public MessageCreateEventBtc(int from, int to, String id, int size,
-			int responseSize, double time, double price) {
+			int responseSize, double time, float price) {
 		super(from,to, id, time);
 		this.size = size;
 		this.responseSize = responseSize;
@@ -48,9 +48,11 @@ public class MessageCreateEventBtc extends MessageEvent {
 		
 		Message m = new Message(from, to, this.id, this.size);
 		List<Wallet> wallets = new LinkedList<Wallet>();
+                List<byte[]> signatures = new LinkedList<byte[]>();
                 m.setResponseSize(this.responseSize);
                 m.addProperty("rewards", this.price);
                 m.addProperty("wallets", wallets);
+                m.addProperty("signatures", signatures);
 		from.createNewMessage(m);
 	}
 	

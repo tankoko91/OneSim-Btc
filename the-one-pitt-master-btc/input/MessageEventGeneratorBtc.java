@@ -202,7 +202,6 @@ public class MessageEventGeneratorBtc implements EventQueue {
 		int interval;
 		int from;
 		int to;
-		double price;
 		/* Get two *different* nodes randomly from the host ranges */
 		from = drawHostAddress(this.hostRange);	
 		to = this.toHostRange;
@@ -211,9 +210,9 @@ public class MessageEventGeneratorBtc implements EventQueue {
 		interval = drawNextEventTimeDiff();
                 
                 RumusMatematika bantuan = new RumusMatematika();
-                double a = bantuan.bagi((msgSize - sizeRange[0]), (sizeRange[1] - sizeRange[0]));
-		double b = bantuan.kali(a, (priceRange[1] - priceRange[0]));
-                price = bantuan.bulat(b, 8);
+                float a = bantuan.bagi((msgSize - sizeRange[0]), (sizeRange[1] - sizeRange[0]));
+		float b = bantuan.kali(a, (priceRange[1] - priceRange[0]));
+                float price = bantuan.bulat(b, 4);
                 
 		/* Create event and advance to next event */
 		MessageCreateEventBtc mce = new MessageCreateEventBtc(from, to, this.getID(), 

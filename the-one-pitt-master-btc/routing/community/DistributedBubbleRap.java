@@ -188,37 +188,39 @@ public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDet
                 // Just send message to Volunteer
                 
                 if(isVolunteer(otherHost)){
-                    /*
-                     * Here is where we decide when to forward along a message. 
-                     * 
-                     * DiBuBB works such that it first forwards to the most globally central
-                     * nodes in the network until it finds a node that has the message's 
-                     * destination as part of it's local community. At this point, it uses 
-                     * the local centrality metric to forward a message within the community. 
-                     */
-                    DTNHost dest = m.getTo();
-                    DistributedBubbleRap de = getOtherDecisionEngine(otherHost);
-                    // Which of us has the dest in our local communities, this host or the peer
-                    boolean peerInCommunity = de.commumesWithHost(dest);
-                    boolean meInCommunity = this.commumesWithHost(dest);
+                    if(!m.getHops().contains(otherHost)){
+                        /*
+                         * Here is where we decide when to forward along a message. 
+                         * 
+                         * DiBuBB works such that it first forwards to the most globally central
+                         * nodes in the network until it finds a node that has the message's 
+                         * destination as part of it's local community. At this point, it uses 
+                         * the local centrality metric to forward a message within the community. 
+                         */
+                        DTNHost dest = m.getTo();
+                        DistributedBubbleRap de = getOtherDecisionEngine(otherHost);
+                        // Which of us has the dest in our local communities, this host or the peer
+                        boolean peerInCommunity = de.commumesWithHost(dest);
+                        boolean meInCommunity = this.commumesWithHost(dest);
 
-                    if(peerInCommunity && !meInCommunity){ // peer is in local commun. of dest
-                        return true;
-                    }
-                    else if(!peerInCommunity && meInCommunity) // I'm in local commun. of dest
-                            return false;
-                    else if(peerInCommunity) // we're both in the local community of destination
-                    {
-                            // Forward to the one with the higher local centrality (in our community)
-                            if(de.getLocalCentrality() > this.getLocalCentrality()){
-                                return true;
-                            } else{
+                        if(peerInCommunity && !meInCommunity){ // peer is in local commun. of dest
+                            return true;
+                        }
+                        else if(!peerInCommunity && meInCommunity) // I'm in local commun. of dest
                                 return false;
-                            }
-                    }
-                    // Neither in local community, forward to more globally central node
-                    else if(de.getGlobalCentrality() > this.getGlobalCentrality()){
-                        return true;
+                        else if(peerInCommunity) // we're both in the local community of destination
+                        {
+                                // Forward to the one with the higher local centrality (in our community)
+                                if(de.getLocalCentrality() > this.getLocalCentrality()){
+                                    return true;
+                                } else{
+                                    return false;
+                                }
+                        }
+                        // Neither in local community, forward to more globally central node
+                        else if(de.getGlobalCentrality() > this.getGlobalCentrality()){
+                            return true;
+                        }
                     }
                 }
                 
@@ -230,9 +232,10 @@ public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDet
 	{
 		// DiBuBB allows a node to remove a message once it's forwarded it into the
 		// local community of the destination
-		DistributedBubbleRap de = this.getOtherDecisionEngine(otherHost);
-		return de.commumesWithHost(m.getTo()) && 
-			!this.commumesWithHost(m.getTo());
+//		DistributedBubbleRap de = this.getOtherDecisionEngine(otherHost);
+//		return de.commumesWithHost(m.getTo()) && 
+//			!this.commumesWithHost(m.getTo());
+                return true;
 	}
 
 	public boolean shouldDeleteOldMessage(Message m, DTNHost hostReportingOld)
@@ -288,10 +291,7 @@ public class DistributedBubbleRap implements RoutingDecisionEngine, CommunityDet
             return false;
         }
         
-    @Override
-    public void update(DTNHost thisHost) {}
-
-    
-
+        @Override
+        public void update(DTNHost thisHost) {}
 
 }
