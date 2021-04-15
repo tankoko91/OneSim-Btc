@@ -131,11 +131,11 @@ public class BlockChain {
     
     public static void addTransactionGenesis(Transaction newTrx){
         
-        if(trxGenesis.size()<3){
+        if(trxGenesis.size()<4){
             trxGenesis.add(newTrx);
         }
         
-        if (trxGenesis.size()==3 && blockchain.isEmpty()){
+        if (trxGenesis.size()==4 && blockchain.isEmpty()){
             Block genesis = new Block("0");
             for(Transaction trx : trxGenesis){
                 genesis.addTransaction(trx);

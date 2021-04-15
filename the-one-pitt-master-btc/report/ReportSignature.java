@@ -80,7 +80,7 @@ public class ReportSignature extends Report implements MessageListener {
                     signatures = (LinkedList<byte[]>) m.getProperty("signatures");
                     for(byte[] signature : signatures){
                         cetak += DatatypeConverter.printHexBinary(signature);
-                        cetak += ", ";
+                        cetak += "\n";
                     }
                     cetak += "\n";
                 }

@@ -114,11 +114,14 @@ public class DecisionEngineRouter extends ActiveRouter implements InterfaceGetTr
     protected List<Message> trustToken;
 
     private final String RSA = "RSA";
-    ;
             
     protected KeyPair keyPair;
+    protected KeyPair keyPairMis;
+    
     protected Map<DTNHost, PublicKey> publicKeys;
     protected Map<String, Transaction> deposits;
+    
+    protected Set<DTNHost> blacklist;
 
     /**
      * Used to save state machine when new connections are made. See comment in
@@ -149,6 +152,7 @@ public class DecisionEngineRouter extends ActiveRouter implements InterfaceGetTr
         trustToken = new LinkedList<Message>();
         publicKeys = new HashMap<DTNHost, PublicKey>();
         deposits = new HashMap<String, Transaction>();
+        blacklist = new HashSet<DTNHost>();
     }
 
     public DecisionEngineRouter(DecisionEngineRouter r) {
@@ -166,6 +170,7 @@ public class DecisionEngineRouter extends ActiveRouter implements InterfaceGetTr
         trustToken = new LinkedList<Message>();
         publicKeys = new HashMap<DTNHost, PublicKey>();
         deposits = new HashMap<String, Transaction>();
+        blacklist = new HashSet<DTNHost>();
     }
 
 //@Override
@@ -270,7 +275,7 @@ public class DecisionEngineRouter extends ActiveRouter implements InterfaceGetTr
             decider.connectionUp(myHost, otherNode);
 
             //jika observer bertemu dengan volunteer
-            if (isObserver(getHost()) && isVolunteer(otherNode)) {
+            if (isObserver(getHost()) && (isVolunteer(otherNode) || isMisbehave(otherNode))) {
                 Map<String, Transaction> otherDeposits=((DecisionEngineRouter) otherNode.getRouter()).getDeposits();
                 if(!otherDeposits.isEmpty()){
                     for (Map.Entry<String, Transaction> entry : otherDeposits.entrySet()) {
@@ -292,15 +297,17 @@ public class DecisionEngineRouter extends ActiveRouter implements InterfaceGetTr
                     //membuat incentive
                     Incentive.createIncentive();
                 }
-
-                if (!Incentive.getPayment().isEmpty()) {
+                
+                //jika ada blacklist di cloud
+                if (!Incentive.getBlacklist().isEmpty()) {
                     //memproses payment
-                    Incentive.processPayment();
+                    this.blacklist = Incentive.getBlacklist();
                 }
+                
             }
 
             //jika volunteer bertemu shelter akan meminta deposit
-            if (isVolunteer(getHost()) && isShelter(otherNode)) {
+            if ((isVolunteer(getHost()) || isMisbehave(getHost())) && isShelter(otherNode)) {
                 Map<String, Transaction> otherDeposits=((DecisionEngineRouter) otherNode.getRouter()).getDeposits();
                 if (!otherDeposits.isEmpty()) {
 //                    MessageRouter mroute = otherNode.getRouter();
@@ -314,6 +321,8 @@ public class DecisionEngineRouter extends ActiveRouter implements InterfaceGetTr
                 }
             }
 
+            
+            
             /*
 * This part is a little confusing because there's a problem we have to
 * avoid. When a connection comes up, we're assuming here that the two
@@ -345,10 +354,21 @@ public class DecisionEngineRouter extends ActiveRouter implements InterfaceGetTr
             Collection<Message> msgs = getMessageCollection();
             for (Message m : msgs) {
                 if (decider.shouldSendMessageToHost(m, otherNode, this.getHost())) {
-                    outgoingMessages.add(new Tuple<Message, Connection>(m, con));
-                    addTrustToken(this.getHost(), m);
-                    addWalletToMessage(m, this.getHost());
-                    addSignatureToMessage(m, this.getHost());
+                    
+                    if(isVolunteer(otherNode) || isMisbehave(otherNode)){
+                        if(!blacklist.contains(otherNode) && !m.getHops().contains(otherNode)){
+                            outgoingMessages.add(new Tuple<Message, Connection>(m, con));
+                            addTrustToken(this.getHost(), m);
+                            addWalletToMessage(m, this.getHost());
+                            addSignatureToMessage(m, this.getHost());
+                            
+                            if(isMisbehave(getHost())){
+                                m.addNodeOnPath(getHost());
+                                addSignatureMisToMessage(m, this.getHost());
+                            }
+                        }
+                    }
+                    
                 }
             }
         } else {
@@ -382,6 +402,12 @@ public class DecisionEngineRouter extends ActiveRouter implements InterfaceGetTr
         if (keyPair == null) {
             try {
                 keyPair = generateRSAKkeyPair();
+                
+                // jika node misbehave maka dia akan membuat dua keypair
+                if(isMisbehave(getHost())){
+                    keyPairMis = generateRSAKkeyPair();
+                }
+                
             } catch (Exception ex) {
                 Logger.getLogger(DecisionEngineRouter.class.getName()).log(Level.SEVERE, null, ex);
             }
@@ -395,6 +421,12 @@ public class DecisionEngineRouter extends ActiveRouter implements InterfaceGetTr
         for (Map.Entry<DTNHost, PublicKey> entry : otherDe.getPublicKeys().entrySet()) {
             publicKeys.put(entry.getKey(), entry.getValue());
         }
+        
+        //jika blacklist orang yang ditemui ada isinya, maka dicopy ke blacklist diri sendiri
+        for(DTNHost black : otherDe.getBlacklist()){
+            this.blacklist.add(black);
+        }
+            
 
 //        System.out.println(getHost() + " : ");
 //        for(Map.Entry<DTNHost, PublicKey> entry : otherDe.getPublicKeys().entrySet()){
@@ -477,6 +509,10 @@ public class DecisionEngineRouter extends ActiveRouter implements InterfaceGetTr
         if (outgoing != null && decider.shouldSaveReceivedMessage(aMessage, getHost())) {
 // not the final recipient and app doesn't want to drop the message
 // -> put to buffer
+
+            //jika node Misbehave maka akan menambah di message path dan signature kedua
+           
+            
             addToMessages(aMessage, false);
 
 // Determine any other connections to which to forward a message
@@ -579,13 +615,23 @@ public class DecisionEngineRouter extends ActiveRouter implements InterfaceGetTr
             if (other != from && decider.shouldSendMessageToHost(m, other, this.getHost())) {
 // if(m.getId().equals("M14"))
 // System.out.println("Adding attempt for M14 from: " + getHost() + " to: " + other);
-                outgoingMessages.add(new Tuple<Message, Connection>(m, c));
+                if(isVolunteer(other) || isMisbehave(other) || m.getTo()==other){
+                        if(!blacklist.contains(other) && !m.getHops().contains(other)){
+                            
+                        outgoingMessages.add(new Tuple<Message, Connection>(m, c));
 
-                //mencatat trusttoken ke dirinya sendiri
-                addTrustToken(this.getHost(), m);
-                //menambahkan wallet/catatan ke pesan
-                addWalletToMessage(m, this.getHost());
-                addSignatureToMessage(m, this.getHost());
+                        //mencatat trusttoken ke dirinya sendiri
+                        addTrustToken(this.getHost(), m);
+                        //menambahkan wallet/catatan ke pesan
+                        addWalletToMessage(m, this.getHost());
+                        addSignatureToMessage(m, this.getHost());
+                        
+                        if(isMisbehave(getHost())){
+                            m.addNodeOnPath(getHost());
+                            addSignatureMisToMessage(m, this.getHost());
+                        }
+                    }
+                }
             }
         }
     }
@@ -624,6 +670,13 @@ public class DecisionEngineRouter extends ActiveRouter implements InterfaceGetTr
         }
         return false;
     }
+    
+    private boolean isMisbehave(DTNHost otherHost) {
+        if (otherHost.toString().startsWith("Mis")) {
+            return true;
+        }
+        return false;
+    }
 
     private void addWalletToMessage(Message m, DTNHost thisHost) {
         List<Wallet> wallets = new LinkedList<Wallet>();
@@ -647,6 +700,21 @@ public class DecisionEngineRouter extends ActiveRouter implements InterfaceGetTr
         m.updateProperty("signatures", signatures);
     }
 
+    private void addSignatureMisToMessage(Message m, DTNHost thisHost) {
+        List<byte[]> signatures = new LinkedList<byte[]>();
+        signatures = (List<byte[]>) m.getProperty("signatures");
+
+        String signature = m.toString() + thisHost.toString();
+
+        try {
+            signatures.add(do_RSAEncryption(signature, keyPairMis.getPrivate()));
+        } catch (Exception ex) {
+            Logger.getLogger(DecisionEngineRouter.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+        m.updateProperty("signatures", signatures);
+    }
+        
     @Override
     public List<Message> getTrustToken() {
         return trustToken;
@@ -680,6 +748,10 @@ public class DecisionEngineRouter extends ActiveRouter implements InterfaceGetTr
 
         return cipher.doFinal(
                 plainText.getBytes());
+    }
+
+    public Set<DTNHost> getBlacklist() {
+        return blacklist;
     }
 
 }

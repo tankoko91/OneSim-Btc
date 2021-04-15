@@ -22,13 +22,15 @@ public class Incentive {
     private static Map<Message, List<Tuple<Wallet, Float>>> ack = new HashMap<Message, List<Tuple<Wallet, Float>>>();
     private static List<Transaction> payment = new ArrayList<Transaction>();
     private static Map<String, Tuple<Transaction, Boolean>> deposits = new HashMap<String, Tuple<Transaction, Boolean>>();
-    
+    private static Set<DTNHost> blacklist = new HashSet<DTNHost>();;
     /*
     key dibuat string karena hashcode Message yang berbeda-beda walaupun id Message sama
     (kemungkinan karena pesan sudah dicopy berulang-ulang)
     sehingga antar Message dengan id yang sama yang sama tidak bisa dicompare lagi
      */
     private static Map<String, List<DTNHost>> trustToken = new HashMap<String, List<DTNHost>>();
+    
+    
 
     public Incentive() {
     }
@@ -43,7 +45,7 @@ public class Incentive {
         //membuat list untuk menampung host yang sudah diverifikasi
         List<DTNHost> verified = new ArrayList<DTNHost>();
 
-        
+        System.out.println(m.getHops());
         RumusMatematika bantu = new RumusMatematika();
     
         //membaca semua host di dalam nodes (node yang dilewati pesan)
@@ -63,10 +65,12 @@ public class Incentive {
 
                     if (signature.matches(validation)) {
                         verified.add(host);
+                    } else{
+                       blacklist.add(host); 
                     }
 
                 } catch (Exception ex) {
-                    Logger.getLogger(Incentive.class.getName()).log(Level.SEVERE, null, ex);
+                    blacklist.add(host);
                 }
             }
             //index naik untuk membaca isi list wallet dari awal hingga akhir
@@ -95,7 +99,7 @@ public class Incentive {
             indx++;
         }
 
-        //menyimpan data ke incentive ke map ack
+//        menyimpan data ke incentive ke map ack
         ack.put(m, incentive);
     }
 
@@ -217,6 +221,8 @@ public class Incentive {
             ack.remove(mes);
             trustToken.remove(mes.toString());
         }
+        
+        System.out.println("blacklist : " + blacklist);
     }
 
     public static String cetakAck() {
@@ -278,6 +284,11 @@ public class Incentive {
         return payment;
     }
 
+    public static Set<DTNHost> getBlacklist() {
+        return blacklist;
+    }
+
+    
     // Decryption function which converts
     // the ciphertext back to the
     // orginal plaintext.
@@ -289,4 +300,6 @@ public class Incentive {
 
         return new String(result);
     }
+    
+    
 }

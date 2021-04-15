@@ -167,20 +167,22 @@ public class ReportTarikStatic extends Report implements MessageListener {
         cetak += "Message\n";
         for (Message m : this.pesen){
             cetak += "Message : " + m.toString() + "\n";
-            cetak += "from : " + m.getProperty("rewards") + "\n";
+            cetak += "price : " + m.getProperty("rewards") + "\n";
             cetak += "via : ";
             for(DTNHost d : m.getHops()){
-                cetak += d.toString() + "\n";
+                cetak += d.toString() + ", ";
             }
+            
+            cetak += "\n";
         }
-        
-        cetak += "Transaction List\n";
-        for (Transaction trx : Incentive.getPayment()){
-            cetak += "TRX : " + trx.toString() + "\n";
-            cetak += "from : " + trx.sender + "\n";
-            cetak += "to : " + trx.reciepient + "\n";
-            cetak += "amount : " + trx.value + "\n";
-        }
+//        
+//        cetak += "Transaction List\n";
+//        for (Transaction trx : Incentive.getPayment()){
+//            cetak += "TRX : " + trx.toString() + "\n";
+//            cetak += "from : " + trx.sender + "\n";
+//            cetak += "to : " + trx.reciepient + "\n";
+//            cetak += "amount : " + trx.value + "\n";
+//        }
         
         List<DTNHost> hosts = SimScenario.getInstance().getHosts();
         
